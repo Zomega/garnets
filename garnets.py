@@ -3,7 +3,7 @@ logging.getLogger().setLevel(logging.INFO)
 
 import random
 
-from math import sqrt, exp
+from math import sqrt, exp, pi
 
 ###
 # CONSTANTS
@@ -15,6 +15,11 @@ PROTOPLANET_MASS = 10.0**-15 # Units of solar masses
 ALPHA = 5.0
 B = 1.2 * 10**-5
 N = 3.0
+K = 50 #gas/dust ratio
+
+SUN_MASS_IN_EARTH_MASSES = 332775.64
+
+DISK_ECCENTRICITY = 0.2
 
 class Star:
 	def __init__(self, mass_ratio, age):
@@ -61,99 +66,195 @@ def random_star(): # TODO: Add seed?
 	# Source: http://exoplanets.co/exoplanet-correlations/host-star-mass-distribution.html
 	# Source: http://en.wikipedia.org/wiki/Main_sequence#mediaviewer/File:HRDiagram.png
 	# TODO: Code up generation.
-	age = random.randrange(1 *10**9, 6*10**9)
+	age = random.randrange(1*10**9, 6*10**9)
 	mass = 1
 	
 	
 
 def generate_stellar_system( star, do_gases = True, do_moons = True ):
 	protoplanets = dist_planetary_masses( star, 0.0, star.stellar_dust_limit, do_moons)
+	for p in protoplanets:
+		print p
 	flag_char = None # TODO: Remove / replace
 	system = generate_planets( star, flag_char, do_gases, do_moons)
 	return system
 
 # Create protoplanets.
 
+class CircumstellarDustLane:
+	def __init__( self, inner_edge, outer_edge, dust_present, gas_present ):
+		self.inner = inner_edge
+		self.outer = outer_edge
+		self.dust_present = dust_present # TODO: Switch to density.
+		self.gas_present = gas_present # TODO: Switch to density
+	def __repr__(self):
+		return "\tINNER: " + str( self.inner ) + ", OUTER: " + str( self.outer ) + " D:" + str( self.dust_present ) + "\n"
+	
+	
+
 class CircumstellarDisk: # TODO: Everything. Dust Lanes...
 	def __init__( self, star ):
 		self.star = star
 		self.planet_inner_bound = 0.3 * ( star.mass_ratio ** 0.333 )
 		self.planet_outer_bound = 50  * ( star.mass_ratio ** 0.333 )
-		self.eccentricity = 0.2
+		
+		self.lanes = [CircumstellarDustLane(0, star.stellar_dust_limit, True, True)]
+
+	def dust_density(self, a):
+		return DUST_DENSITY_COEFF * sqrt( self.star.mass_ratio ) * exp( -ALPHA * ( a ** (1.0 / N) ) ) * (10**-4) # TODO: This last term is a hack to get things working. It needs to be removed.
 
 	@property
-	def dust_density(self, a):
-		return DUST_DENSITY_COEFF * sqrt( star.mass_ratio ) * exp( -ALPHA * ( a ** (1.0 / N) ) )
-
-	@property # TODO: Do this properly.
 	def dust_left(self):
-		if random.uniform(0.0, 1.0) > 0.01:
-			return True
+		# Check if we have any lanes on file with dust left!
+		for lane in self.lanes:
+			if lane.dust_present:
+				return True
+		return False
+		
+	def dust_available(self, inner, outer):
+		for lane in self.lanes:
+			# See if the lanes overlap.
+			if (lane.inner <= inner and lane.outer > inner) or (lane.outer >= outer and lane.inner < outer):
+				if lane.dust_present:
+					return True
 		return False
 
-	def dust_available(self, inner, outer):
-		return 1.0 # TODO
+	def collect_dust(self, planetoid):
+		new_dust_mass = 0
+		new_gas_mass = 0
+		for lane in self.lanes:
+		
+			# If the lane doesn't overlap, then we should just continue.
+			if (lane.outer <= planetoid.inner_effect_limit) or (lane.inner >= planetoid.outer_effect_limit):
+				continue
+				
+			# Now we need to figure out the density of gas and dust in the lane.
+			if not lane.dust_present: # TODO: Refactor these quantities to be less planetoid specific.
+				dust_density = 0.0
+				gas_density = 0.0
+			else:
+				dust_density = self.dust_density(planetoid.a)
+				if planetoid.mass < planetoid.critical_mass or ( not lane.gas_present ):
+					gas_density = 0.0
+				else:
+					gas_density =  ( K - 1.0 ) * dust_density / (1.0 + sqrt( planetoid.critical_mass / planetoid.mass ) * (K - 1.0)) # TODO: This is DEEP Magic. Figure it out somehow.
+					
+				# Compute the width of the overlap between the region of effect and the lane.
+				lane_width = lane.outer - lane.inner
+				
+				width = min( lane.outer, planetoid.outer_effect_limit ) - max( lane.inner, planetoid.inner_effect_limit)
+			
+				temp1 = planetoid.outer_effect_limit - lane.outer;
+				if (temp1 < 0.0):
+					temp1 = 0.0;
+			
+				temp2 = lane.inner - planetoid.inner_effect_limit;
+				if (temp2 < 0.0):
+					temp2 = 0.0
+					
+				temp = 4.0 * pi * ( planetoid.a ** 2.0 ) * planetoid.reduced_mass * (1.0 - planetoid.e * (temp1 - temp2) / lane_width)
+				volume = temp * width
 
-	def collect_dust(self, planetesimal):
-		return 0 # TODO
+				new_dust_mass += volume * dust_density
+				new_gas_mass  += volume * gas_density		
+		return new_dust_mass, new_gas_mass
+			
+	def update_dust_lanes(self, planetoid):
+		# TODO: Refactor gas. This seems weird.
+		if planetoid.mass > planetoid.critical_mass:
+			gas = False
+		else:
+			gas = True
+			
+		new_lanes = []
+		while len(self.lanes) > 0:
+			lane = self.lanes.pop()
+			
+			# If the lane has neither dust nor gas, prune it.
+			if not (lane.dust_present or lane.gas_present):
+				continue
+				
+			# Now we see if the lane was overlapped at any point...
+			if lane.outer <= planetoid.inner_effect_limit or lane.inner >= planetoid.outer_effect_limit:
+				# There's no overlap, so the lane isn't affected.
+				new_lanes.append(lane)
+				continue
+			
+			if lane.inner < planetoid.inner_effect_limit:
+				# Make an lane for the inside of the old lane
+				new_lanes.append( CircumstellarDustLane( lane.inner, planetoid.inner_effect_limit, lane.dust_present, lane.gas_present ) )
+			if lane.outer > planetoid.outer_effect_limit:
+				print "OUTER"
+				# Make an lane for the outside of the old lane
+				new_lanes.append( CircumstellarDustLane( lane.outer, planetoid.outer_effect_limit, lane.dust_present, lane.gas_present ) )
+			# Make a lane for the overlapped portion.
+			new_lanes.append( CircumstellarDustLane( max( lane.inner, planetoid.inner_effect_limit ), min( lane.outer, planetoid.outer_effect_limit ), False, gas and lane.gas_present ) )
+		self.lanes = new_lanes
+		print self.lanes
+		
+	def accrete_dust(self, planetoid):
+		last_mass = planetoid.mass
+		while True:
+			new_dust_mass, new_gas_mass = self.collect_dust( planetoid )
+			planetoid.dust_mass += new_dust_mass
+			planetoid.gas_mass += new_gas_mass
+			if (planetoid.mass - last_mass) < (0.0001 * last_mass): # Accretion has slowed enough. Stop trying.
+				break
+			last_mass = planetoid.mass
+		print "Accretion halted at ",planetoid.mass
+		self.update_dust_lanes( planetoid )
 
-	def update_dust_lanes(self, planetesimal):
-		return # TODO
-
-class Planetesimal:
-	def __init__( self, disk, a, e, mass, dust_mass = 0, gas_mass = 0 ):
-		self.disk = disk
+class Planetoid:
+	def __init__( self, a, e, dust_mass, gas_mass ):
 		self.a = a
 		self.e = e
-		self.mass = mass
 		self.dust_mass = dust_mass
 		self.gas_mass = gas_mass
-
+	
+	@property
+	def mass(self):
+		return self.dust_mass + self.gas_mass
+		
+	@property
+	def reduced_mass(self):
+		# To understand what this is all about...
+		# http://spiff.rit.edu/classes/phys440/lectures/reduced/reduced.html
+		# TODO: Understand better?
+		return (self.mass / (1.0 + self.mass)) ** 0.25;
+		
 	@property
 	def inner_effect_limit(self):
-		return (self.a * (1.0 - self.e) * (1.0 - self.mass) / (1.0 + self.disk.eccentricity))
+		temp = (self.a * (1.0 - self.e) * (1.0 - self.mass) / (1.0 + DISK_ECCENTRICITY))
+		if temp < 0:
+			return 0
+		return temp
 
 	@property
 	def outer_effect_limit(self):
-		return (self.a * (1.0 + self.e) * (1.0 + self.mass) / (1.0 - self.disk.eccentricity));
+		return (self.a * (1.0 + self.e) * (1.0 + self.mass) / (1.0 - DISK_ECCENTRICITY))
+		
+class Planetesimal(Planetoid):
+	def __init__( self, disk, a, e, dust_mass, gas_mass ):
+		Planetoid.__init__(self, a, e, dust_mass, gas_mass)
+		self.disk = disk
 
 	@property
-	def critical_limit(self):
+	def critical_mass(self):
 		perihelion_dist = self.a * (1.0 - self.e);
-		temp = perihelion_dist * sqrt( self.disk.star.luminosity_ratio );
-		return B * ( temp ** -0.75 );
-
-	def accrete_dust(self):
-		last_mass = self.mass
-		while True:
-			self.mass += self.disk.collect_dust( self ) # TODO: Rewrite to delta for better numerics.
-								# TODO: understand exactly what collect_dust does, tweak accordingly.
-			if (self.mass - last_mass) < (0.0001 * last_mass): # Accretion has slowed enough. Stop trying.
-				break
-		self.disk.update_dust_lanes( self )
+		temp = perihelion_dist * sqrt( self.disk.star.luminosity_ratio )
+		return B * ( temp ** -0.75 )
 
 def random_planetesimal( disk ):
 	a = random.uniform( disk.planet_inner_bound, disk.planet_outer_bound )
 	e = 1.0 - ( random.uniform(0.0, 1.0) ** ECCENTRICITY_COEFF )
 	if e > .99:
 		e = .99
-	mass = PROTOPLANET_MASS
-	return Planetesimal( disk, a, e, mass )
+	return Planetesimal( disk, a, e, PROTOPLANET_MASS, 0 )
 
 def dist_planetary_masses( star, inner_dust, outer_dust, do_moons = True ):
 	disk = CircumstellarDisk(star)
 
 	planets = []
-
-	def random_semimajor_axis():
-		a = random.uniform( planet_inner_bound, planet_outer_bound )
-		return a
-	def random_eccentricity():
-		e = 1.0 - ( random.uniform(0.0, 1.0) ** ECCENTRICITY_COEFF )
-	
-		if e > .99:
-			e = .99
-		return e
 
 	while disk.dust_left:
 		canidate = random_planetesimal(disk)
@@ -163,321 +264,112 @@ def dist_planetary_masses( star, inner_dust, outer_dust, do_moons = True ):
 		if disk.dust_available(canidate.inner_effect_limit, canidate.outer_effect_limit) > 0: 
 			logging.info("Injecting planetesimal at " + str(canidate.a) + " AU ...");
 			
-			canidate.accrete_dust()
+			disk.accrete_dust(canidate)
 			
-			canidate.dust_mass += PROTOPLANET_MASS;
+			canidate.dust_mass -= PROTOPLANET_MASS # Take back the seed mass.
 			
 			if canidate.mass > PROTOPLANET_MASS:
-				coalesce_planetesimals( planets, canidate, do_moons )
+				coalesce_planetesimals( disk, planets, canidate, do_moons )
 				logging.info( "\tsuccess." )
 			else:
 				logging.info( "\tfailed due to large neighbor." )
 		else:
 			logging.info( "\tfailed, no dust in region." )
-	return
+			print disk.lanes
+			print planets
+	print "NO DUST!"
+	print disk.lanes
+	return planets
 
-class Protoplanet:
-	def __init__( self, star, a, e, mass, dust_mass, gas_mass ):
+class Protoplanet(Planetoid):
+	def __init__( self, star, a, e, dust_mass, gas_mass ):
+		Planetoid.__init__( self, a, e, dust_mass, gas_mass )
 		self.star = star
-		self.a = a
-		self.e = e
-		self.mass = mass
-		self.dust_mass = dust_mass
-		self.gas_mass = gas_mass
 		self.moons = []
-	def add_moon( moon ):
+	def add_moon( self, moon ):
 		self.moons.append( moon )
+		
+	@property
+	def mass_of_moons(self):
+		return sum([ moon.mass for moon in self.moons ])
+		
+	@property
+	def critical_mass(self):
+		perihelion_dist = self.a * (1.0 - self.e);
+		temp = perihelion_dist * sqrt( self.star.luminosity_ratio )
+		return B * ( temp ** -0.75 )
+		
+	def __repr__(self):
+		return "\tMass: " + str(self.mass * SUN_MASS_IN_EARTH_MASSES) + " earth masses; Orbit: " + str(self.a) + " AU, Moons: " + str(len(self.moons)) + "\n"
 
-class Protomoon:
-	def __init( self, protoplanet, mass, dust_mass, gas_mass ):
+class Protomoon(Planetoid):
+	def __init__( self, protoplanet, dust_mass, gas_mass ):
+		Planetoid.__init__(self, None, None, dust_mass, gas_mass)
 		self.protoplanet = protoplanet
-		self.mass = mass
-		self.dust_mass = mass
-		self.gas_mass = mass
+		
+def convert_planetesimal_to_protoplanet( planetesimal ):
+	return Protoplanet( planetesimal.disk.star, planetesimal.a, planetesimal.e, planetesimal.dust_mass, planetesimal.gas_mass )
+	
+def convert_planetesimal_to_protomoon( planetesimal, planet ):
+	print "GOT HERE"
+	return Protomoon( planet, planetesimal.dust_mass, planetesimal.gas_mass )
 
-def coalesce_planetesimals( planets, canidate, do_moons ):
+def coalesce_planetesimals( disk, planets, canidate, do_moons ):
 	finished = False
-
-	def overlapping( planet, canidate ):
-		# TODO
 
 	# First we try to find an existing planet with an over-lapping orbit.
 	for planet in planets:
-		if overlapping( planet, canidate ):
-			# Figure out the new e / a
-			# TODO:
+	
+		diff = planet.a - canidate.a
+		
+		if diff > 0.0:
+			dist1 = (canidate.a * (1.0 + canidate.e) * (1.0 + canidate.reduced_mass)) - canidate.a;
+			# x aphelion
+			dist2 = planet.a - (planet.a * (1.0 - planet.e) * (1.0 - planet.reduced_mass));
+		else:
+			dist1 = canidate.a - (canidate.a * (1.0 - canidate.e) * (1.0 - canidate.reduced_mass));
+			# x perihelion
+			dist2 = (planet.a * (1.0 + planet.e) * (1.0 + planet.reduced_mass)) - planet.a;
+		
+		if abs(diff) <= abs(dist1) or abs(diff) <= abs(dist2):
+			# Figure out the new orbit.
+			a = (planet.mass + canidate.mass) / ((planet.mass / planet.a) + (canidate.mass / canidate.a));
+			
+			temp = planet.mass * sqrt(planet.a) * sqrt( 1.0 - ( planet.e ** 2.0 ) )
+			temp = temp + ( canidate.mass * sqrt( canidate.a ) * sqrt(sqrt(1.0 - ( canidate.e ** 2.0 ) )))
+			temp = temp / (( planet.mass + canidate.mass ) * sqrt( canidate.a ))
+			temp = 1.0 - ( temp ** 2.0 )
+			if temp < 0.0 or temp >= 1.0:
+				temp = 0.0
+			e = sqrt(temp)
+			
 			if do_moons:
-				if capture_moon( planet, canidate ):
-					planet.add_moon( convert_planetesimal_to_protomoon( canidate, planet) )
-					logging.info("Moon captured at " + str(planet.a) + " AU. Planet Mass: " + str(planet.mass * SUN_MASS_IN_EARTH_MASSES) + " earth masses; Moon Mass: " + str(canidate.mass * SUN_MASS_IN_EARTH_MASSES) + " earth masses.")
-					finished = True;
-					break;
-				else:
-					logging.info("Did not capture moon at " + str(planet.a) + " AU. Collision imminent.") # TODO: Reasons.
-			logging.info("Collision between two planetesimals! Computing new orbit and accumulating additional mass.") # TODO: Extra info.
+				if canidate.mass < canidate.critical_mass:
+					if canidate.mass * SUN_MASS_IN_EARTH_MASSES < 2.5 and canidate.mass * SUN_MASS_IN_EARTH_MASSES > .0001 and planet.mass_of_moons < planet.mass * .05 and planet.mass > canidate.mass:
+						# TODO: Remove planet.mass > canidate.mass distinction, just switch the canidate and planet!
+						planet.add_moon( convert_planetesimal_to_protomoon( canidate, planet) )
+						logging.info("Moon captured at " + str(planet.a) + " AU. Planet Mass: " + str(planet.mass * SUN_MASS_IN_EARTH_MASSES) + " earth masses; Moon Mass: " + str(canidate.mass * SUN_MASS_IN_EARTH_MASSES) + " earth masses." )
+						finished = True;
+						break;
+					else:
+						logging.info("Did not capture potential moon at " + str(planet.a) + " AU. Collision imminent.") # TODO: Reasons.
+						
+			logging.info("Collision between two planetesimals! Computing new orbit and accumulating additional mass.")
+			temp = planet.mass + canidate.mass;
+			disk.accrete_dust(planet); # Accrete MORE DUST! TODO: Refactor to this.
+
+			planet.a = a;
+			planet.e = e;
+			planet.mass = temp;
+			planet.dust_mass = planet.dust_mass + canidate.dust_mass # + new_dust
+			planet.gas_mass  = planet.gas_mass + canidate.gas_mass # + new_gas
+			finished = True;
+			logging.info("Conglomerate is now " + str(planet.mass * SUN_MASS_IN_EARTH_MASSES) + " earth masses at " + str( planet.a ) + " AU.")
 			
 	if not finished:
-		# Planetesimals didn't collide. Make it a planet.
+		logging.info("New Protoplanet at " + str(canidate.a) + "AU.") # TODO: Extra info.
 		planets.append( convert_planetesimal_to_protoplanet( canidate ) )
-		# TODO: Sort Planets?
-		
 
-'''void coalesce_planetesimals(long double a, long double e, long double mass, long double crit_mass,
-							long double dust_mass, long double gas_mass,
-							long double stell_luminosity_ratio,
-							long double body_inner_bound, long double body_outer_bound,
-							int			do_moons)
-{
-	planet_pointer	the_planet;
-	planet_pointer	next_planet;
-	planet_pointer	prev_planet;
-	int 			finished; 
-	long double 	temp;
-	long double 	diff;
-	long double 	dist1;
-	long double 	dist2;
-	
-	finished = FALSE;
-	prev_planet = NULL;
-
-// First we try to find an existing planet with an over-lapping orbit.
-	
-	for (the_planet = planet_head;
-		 the_planet != NULL;
-		 the_planet = the_planet->next_planet)
-	{
-		diff = the_planet->a - a;
-		
-		if ((diff > 0.0))
-		{
-			dist1 = (a * (1.0 + e) * (1.0 + reduced_mass)) - a;
-			/* x aphelion	 */
-			reduced_mass = pow((the_planet->mass / (1.0 + the_planet->mass)),(1.0 / 4.0));
-			dist2 = the_planet->a
-				- (the_planet->a * (1.0 - the_planet->e) * (1.0 - reduced_mass));
-		}
-		else 
-		{
-			dist1 = a - (a * (1.0 - e) * (1.0 - reduced_mass));
-			/* x perihelion */
-			reduced_mass = pow((the_planet->mass / (1.0 + the_planet->mass)),(1.0 / 4.0));
-			dist2 = (the_planet->a * (1.0 + the_planet->e) * (1.0 + reduced_mass))
-				- the_planet->a;
-		}
-		
-		if (((fabs(diff) <= fabs(dist1)) || (fabs(diff) <= fabs(dist2))))
-		{
-			long double new_dust = 0;
-			long double	new_gas = 0;
-			long double new_a = (the_planet->mass + mass) / 
-								((the_planet->mass / the_planet->a) + (mass / a));
-			
-			temp = the_planet->mass * sqrt(the_planet->a) * sqrt(1.0 - pow(the_planet->e,2.0));
-			temp = temp + (mass * sqrt(a) * sqrt(sqrt(1.0 - pow(e,2.0))));
-			temp = temp / ((the_planet->mass + mass) * sqrt(new_a));
-			temp = 1.0 - pow(temp,2.0);
-			if (((temp < 0.0) || (temp >= 1.0)))
-				temp = 0.0;
-			e = sqrt(temp);
-			
-			if (do_moons)
-			{
-				long double existing_mass = 0.0;
-				
-				if (the_planet->first_moon != NULL)
-				{
-					planet_pointer	m;
-					
-					for (m = the_planet->first_moon;
-						 m != NULL;
-						 m = m->next_planet)
-					{
-						existing_mass += m->mass;
-					}
-				}
-
-				if (mass < crit_mass)
-				{
-					if ((mass * SUN_MASS_IN_EARTH_MASSES) < 2.5
-					 && (mass * SUN_MASS_IN_EARTH_MASSES) > .0001
-					 && existing_mass < (the_planet->mass * .05)
-					   )
-					{
-						planet_pointer	the_moon = (planets *)malloc(sizeof(planets));
-						
-						the_moon->type 			= tUnknown;
-	/* 					the_moon->a 			= a; */
-	/* 					the_moon->e 			= e; */
-						the_moon->mass 			= mass;
-						the_moon->dust_mass 	= dust_mass;
-						the_moon->gas_mass 		= gas_mass;
-						the_moon->atmosphere 	= NULL;
-						the_moon->next_planet 	= NULL;
-						the_moon->first_moon 	= NULL;
-						the_moon->gas_giant 	= FALSE;
-						the_moon->atmosphere	= NULL;
-						the_moon->albedo		= 0;
-						the_moon->gases			= 0;
-						the_moon->surf_temp		= 0;
-						the_moon->high_temp		= 0;
-						the_moon->low_temp		= 0;
-						the_moon->max_temp		= 0;
-						the_moon->min_temp		= 0;
-						the_moon->greenhs_rise	= 0;
-						the_moon->minor_moons 	= 0;
-	
-						if ((the_moon->dust_mass + the_moon->gas_mass)
-						  > (the_planet->dust_mass + the_planet->gas_mass))
-						{
-							long double	temp_dust = the_planet->dust_mass;
-							long double temp_gas  = the_planet->gas_mass;
-							long double temp_mass = the_planet->mass;
-							
-							the_planet->dust_mass = the_moon->dust_mass;
-							the_planet->gas_mass  = the_moon->gas_mass;
-							the_planet->mass      = the_moon->mass;
-							
-							the_moon->dust_mass   = temp_dust;
-							the_moon->gas_mass    = temp_gas;
-							the_moon->mass        = temp_mass;
-						}
-	
-						if (the_planet->first_moon == NULL)
-							the_planet->first_moon = the_moon;
-						else
-						{
-							the_moon->next_planet = the_planet->first_moon;
-							the_planet->first_moon = the_moon;
-						}
-						
-						finished = TRUE;
-						
-						if (flag_verbose & 0x0100)
-							fprintf (stderr, "Moon Captured... "
-									 "%5.3Lf AU (%.2LfEM) <- %.2LfEM\n",
-									the_planet->a, the_planet->mass * SUN_MASS_IN_EARTH_MASSES, 
-									mass * SUN_MASS_IN_EARTH_MASSES
-									);
-					}
-					else 
-					{
-						if (flag_verbose & 0x0100)
-							fprintf (stderr, "Moon Escapes... "
-									 "%5.3Lf AU (%.2LfEM)%s %.2LfEM%s\n",
-									the_planet->a, the_planet->mass * SUN_MASS_IN_EARTH_MASSES, 
-									existing_mass < (the_planet->mass * .05) ? "" : " (big moons)",
-									mass * SUN_MASS_IN_EARTH_MASSES,
-									(mass * SUN_MASS_IN_EARTH_MASSES) >= 2.5 ? ", too big" : 
-									  (mass * SUN_MASS_IN_EARTH_MASSES) <= .0001 ? ", too small" : ""
-									);
-					}
-				}
-			}
-
-			if (!finished)
-			{
-				if (flag_verbose & 0x0100)
-						fprintf (stderr, "Collision between two planetesimals! "
-								"%4.2Lf AU (%.2LfEM) + %4.2Lf AU (%.2LfEM = %.2LfEMd + %.2LfEMg [%.3LfEM])-> %5.3Lf AU (%5.3Lf)\n",
-								the_planet->a, the_planet->mass * SUN_MASS_IN_EARTH_MASSES, 
-								a, mass * SUN_MASS_IN_EARTH_MASSES, 
-								dust_mass * SUN_MASS_IN_EARTH_MASSES, gas_mass * SUN_MASS_IN_EARTH_MASSES, 
-								crit_mass * SUN_MASS_IN_EARTH_MASSES,
-								new_a, e);
-			
-				temp = the_planet->mass + mass;
-				accrete_dust(&temp, &new_dust, &new_gas,
-							 new_a,e,stell_luminosity_ratio,
-							 body_inner_bound,body_outer_bound);
-	
-				the_planet->a = new_a;
-				the_planet->e = e;
-				the_planet->mass = temp;
-				the_planet->dust_mass += dust_mass + new_dust;
-				the_planet->gas_mass += gas_mass + new_gas;
-				if (temp >= crit_mass)
-					the_planet->gas_giant = TRUE;
-					
-				while (the_planet->next_planet != NULL && the_planet->next_planet->a < new_a)
-				{
-					next_planet = the_planet->next_planet;
-					
-					if (the_planet == planet_head)
-						planet_head = next_planet;
-					else
-						prev_planet->next_planet = next_planet;
-					
-					the_planet->next_planet = next_planet->next_planet;
-					next_planet->next_planet = the_planet;
-					prev_planet = next_planet;
-				}
-			}
-
-			finished = TRUE;
-			break;
-		}
-		else 
-		{
-			prev_planet = the_planet;
-		}
-	}
-	
-	if (!(finished))			// Planetesimals didn't collide. Make it a planet.
-	{
-		the_planet = (planets *)malloc(sizeof(planets));
-		
-		the_planet->type 			= tUnknown;
-		the_planet->a 				= a;
-		the_planet->e 				= e;
-		the_planet->mass 			= mass;
-		the_planet->dust_mass 		= dust_mass;
-		the_planet->gas_mass 		= gas_mass;
-		the_planet->atmosphere 		= NULL;
-		the_planet->first_moon 		= NULL;
-		the_planet->atmosphere		= NULL;
-		the_planet->albedo			= 0;
-		the_planet->gases			= 0;
-		the_planet->surf_temp		= 0;
-		the_planet->high_temp		= 0;
-		the_planet->low_temp		= 0;
-		the_planet->max_temp		= 0;
-		the_planet->min_temp		= 0;
-		the_planet->greenhs_rise	= 0;
-		the_planet->minor_moons 	= 0;
-		
-		if ((mass >= crit_mass))
-			the_planet->gas_giant = TRUE;
-		else 
-			the_planet->gas_giant = FALSE;
-		
-		if ((planet_head == NULL))
-		{
-			planet_head = the_planet;
-			the_planet->next_planet = NULL;
-		}
-		else if ((a < planet_head->a))
-		{
-			the_planet->next_planet = planet_head;
-			planet_head = the_planet;
-		}
-		else if ((planet_head->next_planet == NULL))
-		{
-			planet_head->next_planet = the_planet;
-			the_planet->next_planet = NULL;
-		}
-		else 
-		{
-			next_planet = planet_head;
-			while (((next_planet != NULL) && (next_planet->a < a)))
-			{
-				prev_planet = next_planet;
-				next_planet = next_planet->next_planet;
-			}
-			the_planet->next_planet = next_planet;
-			prev_planet->next_planet = the_planet;
-		}
-	}
-}'''
 
 def generate_planets( star, flag_char, do_gasses, do_moons ):
 	logging.warning("generate_planets( ... ) not implemented yet.") # TODO
