@@ -11,13 +11,18 @@ from math import sqrt, exp, pi
 
 DUST_DENSITY_COEFF = 0.002
 ECCENTRICITY_COEFF = 0.077
-PROTOPLANET_MASS = 10.0**-15 # Units of solar masses
+
+PROTOPLANET_MASS = 10.0**-15 # Units of solar masses. For scale, pluto clocks in at about 10^-8.
 ALPHA = 5.0
 B = 1.2 * 10**-5
 N = 3.0
 K = 50 #gas/dust ratio
 
 SUN_MASS_IN_EARTH_MASSES = 332775.64
+
+SUN_MASS_IN_MOON_MASSES = 27069000
+
+SUN_MASS_IN_JUPITER_MASSES = 1047.2
 
 DISK_ECCENTRICITY = 0.2
 
@@ -44,7 +49,7 @@ class Star:
 	@property
 	# Source: StarGen, TODO Verify against current data.
 	def stellar_dust_limit(self):
-		return 200.0 * ( self.mass_ratio ** 0.3333 );
+		return 200.0 * ( self.mass_ratio ** 0.3333 )
 
 	@property
 	# Source: StarGen, TODO Name? Value?
@@ -101,7 +106,7 @@ class CircumstellarDisk: # TODO: Everything. Dust Lanes...
 		self.lanes = [CircumstellarDustLane(0, star.stellar_dust_limit, True, True)]
 
 	def dust_density(self, a):
-		return DUST_DENSITY_COEFF * sqrt( self.star.mass_ratio ) * exp( -ALPHA * ( a ** (1.0 / N) ) ) * (10**-4) # TODO: This last term is a hack to get things working. It needs to be removed.
+		return DUST_DENSITY_COEFF * sqrt( self.star.mass_ratio ) * exp( -ALPHA * ( a ** (1.0 / N) ) ) # TODO: This last term is a hack to get things working. It needs to be removed.
 
 	@property
 	def dust_left(self):
@@ -140,19 +145,19 @@ class CircumstellarDisk: # TODO: Everything. Dust Lanes...
 					gas_density =  ( K - 1.0 ) * dust_density / (1.0 + sqrt( planetoid.critical_mass / planetoid.mass ) * (K - 1.0)) # TODO: This is DEEP Magic. Figure it out somehow.
 					
 				# Compute the width of the overlap between the region of effect and the lane.
-				lane_width = lane.outer - lane.inner
+				bandwidth = planetoid.outer_effect_limit - planetoid.inner_effect_limit
 				
 				width = min( lane.outer, planetoid.outer_effect_limit ) - max( lane.inner, planetoid.inner_effect_limit)
 			
 				temp1 = planetoid.outer_effect_limit - lane.outer;
 				if (temp1 < 0.0):
-					temp1 = 0.0;
+					temp1 = 0.0
 			
 				temp2 = lane.inner - planetoid.inner_effect_limit;
 				if (temp2 < 0.0):
 					temp2 = 0.0
 					
-				temp = 4.0 * pi * ( planetoid.a ** 2.0 ) * planetoid.reduced_mass * (1.0 - planetoid.e * (temp1 - temp2) / lane_width)
+				temp = 4.0 * pi * ( planetoid.a ** 2.0 ) * planetoid.reduced_mass * (1.0 - planetoid.e * (temp1 - temp2) / bandwidth)
 				volume = temp * width
 
 				new_dust_mass += volume * dust_density
@@ -190,14 +195,14 @@ class CircumstellarDisk: # TODO: Everything. Dust Lanes...
 			# Make a lane for the overlapped portion.
 			new_lanes.append( CircumstellarDustLane( max( lane.inner, planetoid.inner_effect_limit ), min( lane.outer, planetoid.outer_effect_limit ), False, gas and lane.gas_present ) )
 		self.lanes = new_lanes
-		print self.lanes
 		
 	def accrete_dust(self, planetoid):
 		last_mass = planetoid.mass
 		while True:
 			new_dust_mass, new_gas_mass = self.collect_dust( planetoid )
-			planetoid.dust_mass += new_dust_mass
-			planetoid.gas_mass += new_gas_mass
+			planetoid.dust_mass = new_dust_mass
+			planetoid.gas_mass = new_gas_mass
+			print (planetoid.mass - last_mass) / last_mass
 			if (planetoid.mass - last_mass) < (0.0001 * last_mass): # Accretion has slowed enough. Stop trying.
 				break
 			last_mass = planetoid.mass
@@ -219,6 +224,7 @@ class Planetoid:
 	def reduced_mass(self):
 		# To understand what this is all about...
 		# http://spiff.rit.edu/classes/phys440/lectures/reduced/reduced.html
+		# But some sort of 3 body case, see dole.
 		# TODO: Understand better?
 		return (self.mass / (1.0 + self.mass)) ** 0.25;
 		
@@ -255,18 +261,19 @@ def dist_planetary_masses( star, inner_dust, outer_dust, do_moons = True ):
 	disk = CircumstellarDisk(star)
 
 	planets = []
+	
+	sequential_failures = 0
 
-	while disk.dust_left:
+	while disk.dust_left and sequential_failures < 10**3:
 		canidate = random_planetesimal(disk)
 		
-		logging.info("Checking " + str(canidate.a) + " AU.")
+		#logging.info("Checking " + str(canidate.a) + " AU.")
 			
 		if disk.dust_available(canidate.inner_effect_limit, canidate.outer_effect_limit) > 0: 
+			sequential_failures = 0
 			logging.info("Injecting planetesimal at " + str(canidate.a) + " AU ...");
 			
 			disk.accrete_dust(canidate)
-			
-			canidate.dust_mass -= PROTOPLANET_MASS # Take back the seed mass.
 			
 			if canidate.mass > PROTOPLANET_MASS:
 				coalesce_planetesimals( disk, planets, canidate, do_moons )
@@ -274,11 +281,8 @@ def dist_planetary_masses( star, inner_dust, outer_dust, do_moons = True ):
 			else:
 				logging.info( "\tfailed due to large neighbor." )
 		else:
-			logging.info( "\tfailed, no dust in region." )
-			print disk.lanes
-			print planets
-	print "NO DUST!"
-	print disk.lanes
+			sequential_failures += 1
+			#logging.info( "\tfailed, no dust in region." )
 	return planets
 
 class Protoplanet(Planetoid):
@@ -300,7 +304,14 @@ class Protoplanet(Planetoid):
 		return B * ( temp ** -0.75 )
 		
 	def __repr__(self):
-		return "\tMass: " + str(self.mass * SUN_MASS_IN_EARTH_MASSES) + " earth masses; Orbit: " + str(self.a) + " AU, Moons: " + str(len(self.moons)) + "\n"
+		def mass_repr():
+			if self.mass * SUN_MASS_IN_MOON_MASSES <= 50:
+				return str( self.mass * SUN_MASS_IN_MOON_MASSES ) + " M_moon"
+			if self.mass * SUN_MASS_IN_EARTH_MASSES <= 50:
+				return str( self.mass * SUN_MASS_IN_EARTH_MASSES ) + " M_earth"
+			return str( self.mass * SUN_MASS_IN_JUPITER_MASSES ) + " M_jupiter"
+			
+		return "\tMass: " +  mass_repr() + "; Orbit: " + str(self.a) + " AU, Moons: " + str(len(self.moons)) + "\n"
 
 class Protomoon(Planetoid):
 	def __init__( self, protoplanet, dust_mass, gas_mass ):
