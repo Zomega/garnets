@@ -1,0 +1,9 @@
+<vstack>
+    <label text="Change the mode"/>
+    <vsep/>
+    <button text="Mode A" action="set_mode('A')"/>
+    <button text="Mode B" action="set_mode('B')"/>
+    <vsep/>
+    <label text="The current mode is..."/>
+    <dlabel contents="mode" maxlen="5"/>
+</vstack>

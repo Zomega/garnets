@@ -1,0 +1,21 @@
+Engine
+   ^
+   |
+   |
+   v
+Model <----> Controller
+   ^          /
+   |   ______/
+   |  /  
+   v /
+ Widget
+   ^ \
+   |  \
+   |   \
+   v    \
+ Canvas  \
+   ^     |
+   |    /
+   |   /
+   v  /
+  User
