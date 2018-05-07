@@ -1,12 +1,12 @@
-#include  <stdio.h>
-#include  <math.h>
-#include  "const.h"
-#include  "structs.h"
-#include  "enviro.h"
-#include  "stargen.h"
-#include  "utils.h"
+# include  <stdio.h>
+# include  <math.h>
+# include  "const.h"
+# include  "structs.h"
+# include  "enviro.h"
+# include  "stargen.h"
+# include  "utils.h"
 
-char* breathability_phrase[4] =
+char * breathability_phrase[4] =
     "none",
     "breathable",
     "unbreathable",
@@ -15,20 +15,20 @@ char* breathability_phrase[4] =
 
 long double luminosity(mass_ratio)
 long double mass_ratio
-  long double n; 
-  
+  long double n;
+
   if mass_ratio < 1.0:
     n = 1.75 * (mass_ratio - 0.1) + 3.325
   else:
     n = 0.5 * (2.0 - mass_ratio) + 4.4
-  return(pow(mass_ratio,n))
-
+  return(pow(mass_ratio, n))
 
 
 '''--------------------------------------------------------------------------'''
 '''   This function, the orbital radius of a planet in AU, returns    '''
 '''   the orbital 'zone' of the particle.                  '''
 '''--------------------------------------------------------------------------'''
+
 
 def orb_zone(self, double luminosity, double orb_radius):
   if orb_radius < (4.0 * sqrt(luminosity)):
@@ -39,7 +39,6 @@ def orb_zone(self, double luminosity, double orb_radius):
     return(3)
 
 
-
 '''--------------------------------------------------------------------------'''
 '''   The mass is in units of solar masses, the density is in units    '''
 '''   of grams/cc.  The radius returned is in units of km.          '''
@@ -47,11 +46,11 @@ def orb_zone(self, double luminosity, double orb_radius):
 
 long double volume_radius(mass, density)
 long double mass, density
-  long double volume; 
-  
+  long double volume;
+
   mass = mass * SOLAR_MASS_IN_GRAMS
   volume = mass / density
-  return(pow((3.0 * volume) / (4.0 * PI),(1.0 / 3.0)) / CM_PER_KM)
+  return(pow((3.0 * volume) / (4.0 * PI), (1.0 / 3.0)) / CM_PER_KM)
 
 
 '''--------------------------------------------------------------------------'''
@@ -69,7 +68,7 @@ long double mass
 int giant, zone
   volatile long double temp1
   long double temp, temp2, atomic_weight, atomic_num
-  
+
   if zone == 1:
     if giant:
       atomic_weight = 9.5
@@ -78,7 +77,6 @@ int giant, zone
     else:
       atomic_weight = 15.0
       atomic_num = 8.0
-
 
   else:
     if zone == 2:
@@ -90,7 +88,6 @@ int giant, zone
         atomic_weight = 10.0
         atomic_num = 5.0
 
-
     else:
       if giant:
         atomic_weight = 7.0
@@ -100,24 +97,22 @@ int giant, zone
         atomic_weight = 10.0
         atomic_num = 5.0
 
-
-  
   temp1 = atomic_weight * atomic_num
-  
-  temp = (2.0 * BETA_20 * pow(SOLAR_MASS_IN_GRAMS,(1.0 / 3.0)))
+
+  temp = (2.0 * BETA_20 * pow(SOLAR_MASS_IN_GRAMS, (1.0 / 3.0)))
        / (A1_20 * pow(temp1, (1.0 / 3.0)))
-  
-  temp2 = A2_20 * pow(atomic_weight,(4.0 / 3.0)) * pow(SOLAR_MASS_IN_GRAMS,(2.0 / 3.0))
-  temp2 = temp2 * pow(mass,(2.0 / 3.0))
+
+  temp2 = A2_20 * pow(atomic_weight, (4.0 / 3.0)) * \
+                      pow(SOLAR_MASS_IN_GRAMS, (2.0 / 3.0))
+  temp2 = temp2 * pow(mass, (2.0 / 3.0))
   temp2 = temp2 / (A1_20 * pow2(atomic_num))
   temp2 = 1.0 + temp2
   temp = temp / temp2
-  temp = (temp * pow(mass,(1.0 / 3.0))) / CM_PER_KM
-  
-  temp /= JIMS_FUDGE;      ''' Earth = actual earth '''
-  
-  return(temp)
+  temp = (temp * pow(mass, (1.0 / 3.0))) / CM_PER_KM
 
+  temp /= JIMS_FUDGE;      ''' Earth = actual earth '''
+
+  return(temp)
 
 
 '''--------------------------------------------------------------------------'''
@@ -125,17 +120,16 @@ int giant, zone
 '''  is in units of AU.  The density is returned in units of grams/cc.    '''
 '''--------------------------------------------------------------------------'''
 
-long double empirical_density(long double mass, double orb_radius, 
+long double empirical_density(long double mass, double orb_radius,
                 long double r_ecosphere, gas_giant)
-  long double temp; 
-  
-  temp = pow(mass * SUN_MASS_IN_EARTH_MASSES,(1.0 / 8.0))
+  long double temp;
+
+  temp = pow(mass * SUN_MASS_IN_EARTH_MASSES, (1.0 / 8.0))
   temp = temp * pow1_4(r_ecosphere / orb_radius)
   if gas_giant:
     return(temp * 1.2)
   else:
     return(temp * 5.5)
-
 
 
 '''--------------------------------------------------------------------------'''
@@ -145,13 +139,12 @@ long double empirical_density(long double mass, double orb_radius,
 
 long double volume_density(mass, equat_radius)
 long double mass, equat_radius
-  long double volume; 
-  
+  long double volume;
+
   mass = mass * SOLAR_MASS_IN_GRAMS
   equat_radius = equat_radius * CM_PER_KM
   volume = (4.0 * PI * pow3(equat_radius)) / 3.0
   return(mass / volume)
-
 
 
 '''--------------------------------------------------------------------------'''
@@ -161,11 +154,10 @@ long double mass, equat_radius
 
 long double period(separation, small_mass, large_mass)
 long double separation, small_mass, large_mass
-  long double period_in_years; 
-  
+  long double period_in_years;
+
   period_in_years = sqrt(pow3(separation) / (small_mass + large_mass))
   return(period_in_years * DAYS_IN_A_YEAR)
-
 
 
 '''--------------------------------------------------------------------------'''
@@ -190,7 +182,7 @@ long double day_length(planet_pointer  planet)
   long equatorial_radius_in_cm = planet.radius * CM_PER_KM
   long year_in_hours = planet.orb_period * 24.0
   giant = (planet.type == tGasGiant or
-         planet.type == tSubGasGiant or 
+         planet.type == tSubGasGiant or
          planet.type == tSubSubGasGiant)
   long double  k2
   long double  base_angular_velocity
@@ -220,30 +212,28 @@ long double day_length(planet_pointer  planet)
                  (EARTH_MASS_IN_GRAMS / planetary_mass_in_grams) *
                  pow(planet.sun.mass, 2.0) *
                  (1.0 / pow(planet.a, 6.0))
-  ang_velocity = base_angular_velocity + (change_in_angular_velocity * 
+  ang_velocity = base_angular_velocity + (change_in_angular_velocity *
                       planet.sun.age)
 
 ''' Now we change from rad/sec to hours/rotation.             '''
 
   if ang_velocity <= 0.0:
      stopped = TRUE
-     day_in_hours = INCREDIBLY_LARGE_NUMBER 
+     day_in_hours = INCREDIBLY_LARGE_NUMBER
 
   else:
     day_in_hours = RADIANS_PER_ROTATION / (SECONDS_PER_HOUR * ang_velocity)
 
   if (day_in_hours >= year_in_hours) or stopped:
     if planet.e > 0.1:
-      spin_resonance_factor   = (1.0 - planet.e) / (1.0 + planet.e)
-      planet.resonant_period   = TRUE
+      spin_resonance_factor = (1.0 - planet.e) / (1.0 + planet.e)
+      planet.resonant_period = TRUE
       return(spin_resonance_factor * year_in_hours)
 
     else:
       return(year_in_hours)
 
-
   return(day_in_hours)
-
 
 
 '''--------------------------------------------------------------------------'''
@@ -251,13 +241,15 @@ long double day_length(planet_pointer  planet)
 '''   Inclination is returned in units of degrees.              '''
 '''--------------------------------------------------------------------------'''
 
-def inclination(self, orb_radius):
-long double orb_radius; 
-  int temp; 
-  
-  temp = (int)(pow(orb_radius,0.2) * about(EARTH_AXIAL_TILT,0.4))
-  return(temp % 360)
 
+def inclination(self, orb_radius):
+
+
+long double orb_radius;
+  int temp;
+
+  temp = (int)(pow(orb_radius, 0.2) * about(EARTH_AXIAL_TILT, 0.4))
+  return(temp % 360)
 
 
 '''--------------------------------------------------------------------------'''
@@ -270,11 +262,10 @@ long double orb_radius;
 long double escape_vel(mass, radius)
 long double mass, radius
   long double mass_in_grams, radius_in_cm
-  
+
   mass_in_grams = mass * SOLAR_MASS_IN_GRAMS
   radius_in_cm = radius * CM_PER_KM
   return(sqrt(2.0 * GRAV_CONSTANT * mass_in_grams / radius_in_cm))
-
 
 
 '''--------------------------------------------------------------------------'''
@@ -289,7 +280,6 @@ long double rms_vel(long double molecular_weight, double exospheric_temp)
        * CM_PER_METER)
 
 
-
 '''--------------------------------------------------------------------------'''
 '''   This function returns the smallest molecular weight retained by the  '''
 '''  body, is useful for determining the atmosphere composition.    '''
@@ -299,11 +289,10 @@ long double rms_vel(long double molecular_weight, double exospheric_temp)
 
 long double molecule_limit(mass, equat_radius, exospheric_temp)
 long double mass, equat_radius, exospheric_temp
-  long esc_velocity = escape_vel(mass,equat_radius)
-  
-  return ((3.0 * MOLAR_GAS_CONST * exospheric_temp) /
-      (pow2((esc_velocity/ GAS_RETENTION_THRESHOLD) / CM_PER_METER)))
+  long esc_velocity = escape_vel(mass, equat_radius)
 
+  return ((3.0 * MOLAR_GAS_CONST * exospheric_temp) /
+      (pow2((esc_velocity / GAS_RETENTION_THRESHOLD) / CM_PER_METER)))
 
 
 '''--------------------------------------------------------------------------'''
@@ -318,7 +307,6 @@ long double mass, radius
              pow2(radius * CM_PER_KM))
 
 
-
 '''--------------------------------------------------------------------------'''
 '''   This function calculates the surface gravity of a planet.  The      '''
 '''  acceleration is in units of cm/sec2, the gravity is returned in    '''
@@ -326,7 +314,7 @@ long double mass, radius
 '''--------------------------------------------------------------------------'''
 
 long double gravity(acceleration)
-long double acceleration; 
+long double acceleration;
   return(acceleration / EARTH_ACCELERATION)
 
 
@@ -334,15 +322,15 @@ long double acceleration;
 '''  This implements Fogg's eq.17.  The 'inventory' returned is unitless.  '''
 '''--------------------------------------------------------------------------'''
 
-long double vol_inventory(mass, escape_vel, rms_vel, stellar_mass, zone, 
+long double vol_inventory(mass, escape_vel, rms_vel, stellar_mass, zone,
            greenhouse_effect, accreted_gas)
 long double mass, escape_vel, rms_vel, stellar_mass
 int zone, greenhouse_effect, accreted_gas
   long double velocity_ratio, proportion_const, temp1, temp2, earth_units
-  
+
   velocity_ratio = escape_vel / rms_vel
   if velocity_ratio >= GAS_RETENTION_THRESHOLD:
-    switch (zone)      case 1:
+    switch(zone)      case 1:
         proportion_ = 140000.0;  ''' 100 . 140 JLB '''
         break
       case 2:
