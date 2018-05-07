@@ -9,7 +9,7 @@ PROTOPLANET_MASS = 10.0**-15 # Units of solar masses. For scale, pluto clocks in
 ALPHA = 5.0
 B = 1.2 * 10**-5
 N = 3.0
-K = 50 #gas/dust ratio
+K = 50 # gas/dust ratio
 
 SUN_MASS_IN_EARTH_MASSES = 332775.64
 
