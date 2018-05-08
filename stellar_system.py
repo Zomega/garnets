@@ -131,3 +131,7 @@ class Protoplanet(Planetoid):
 @attrs
 class Protomoon(Planetoid):
     protoplanet = attrib()
+
+
+class Planet():
+    pass

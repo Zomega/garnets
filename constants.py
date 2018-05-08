@@ -18,6 +18,8 @@ B = 1.2 * 10**-5
 N = 3.0
 K = 50  # gas/dust ratio
 J = 1.46E-19  # Used in day-length calcs (cm2/sec2 g)
+# Units of Earth Masses, Below this mass, will only product asteroids.
+ASTEROID_MASS_LIMIT = 0.001
 
 DISK_ECCENTRICITY = 0.2
 

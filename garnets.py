@@ -5,9 +5,21 @@ from stellar_system import Star
 from stellar_system import Planetesimal
 from stellar_system import Protoplanet
 from stellar_system import Protomoon
+from stellar_system import Planet
 from accrete import CircumstellarDisk
 from constants import ECCENTRICITY_COEFF, PROTOPLANET_MASS
 from constants import SUN_MASS_IN_EARTH_MASSES
+from constants import EARTH_ALBEDO, GAS_GIANT_ALBEDO, FREEZING_POINT_OF_WATER, KM_PER_AU, EARTH_AVERAGE_KELVIN, EARTH_EXOSPHERE_TEMP
+from constants import MOL_NITROGEN, MOL_HYDROGEN, HELIUM
+from constants import ASTEROID_MASS_LIMIT
+
+from enviroment import kothari_radius, gas_life, rms_vel, est_temp, period, day_length, acceleration, gravity, min_molec_weight, orb_zone, volume_radius, volume_density, grnhouse, boiling_point, escape_vel, empirical_density, inclination, iterate_surface_temp, pressure, vol_inventory
+from enviroment import PlanetType
+
+from math import exp
+from math import inf as INCREDIBLY_LARGE_NUMBER
+
+from util import about, random_number, random_eccentricity
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -118,7 +130,7 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
             dist1 = (
                 canidate.a -
                 (canidate.a * (1.0 - canidate.e) * (1.0 - canidate.reduced_mass)
-            ))
+                 ))
             # x perihelion
             dist2 = (planet.a * (1.0 + planet.e) *
                      (1.0 + planet.reduced_mass)) - planet.a
@@ -140,14 +152,14 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
             if do_moons:
                 if canidate.mass < canidate.critical_mass:
                     if canidate.mass * SUN_MASS_IN_EARTH_MASSES < 2.5 \
-                        and canidate.mass * SUN_MASS_IN_EARTH_MASSES > .0001 \
-                        and planet.mass_of_moons < planet.mass * .05 \
-                        and planet.mass > canidate.mass:
+                            and canidate.mass * SUN_MASS_IN_EARTH_MASSES > .0001 \
+                            and planet.mass_of_moons < planet.mass * .05 \
+                            and planet.mass > canidate.mass:
                         # TODO: Remove planet.mass > canidate.mass distinction, just switch the canidate and planet!
                         planet.add_moon(
                             convert_planetesimal_to_protomoon(canidate, planet))
                         logging.info("Moon captured at " + str(planet.a) + " AU. Planet Mass: " + str(planet.mass * SUN_MASS_IN_EARTH_MASSES) +
-                                     " earth masses; Moon Mass: " + str(canidate.mass * SUN_MASS_IN_EARTH_MASSES) + " earth masses.")
+                                     " earth masses Moon Mass: " + str(canidate.mass * SUN_MASS_IN_EARTH_MASSES) + " earth masses.")
                         finished = True
                         break
                     else:
@@ -177,9 +189,302 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
         planets.append(convert_planetesimal_to_protoplanet(canidate))
 
 
+def calculate_gases(sun, planet, planet_id):
+    raise NotImplementedError("calculate_gases is not ported form stargen.c")
+
+
 def generate_planet(protoplanent, sun, random_tilt=0, planet_id=None, do_gases=True, do_moons=True, is_moon=False):
-    logging.warning("generate_planet( ... ) not implemented yet.")  # TODO
+    # TODO(woursler): Implement
+    logging.warning("generate_planet( ... ) not implemented yet.")
     return
+
+    planet = Planet()
+
+    planet.atmosphere = None
+    planet.gases = 0
+    planet.surf_temp = 0
+    planet.high_temp = 0
+    planet.low_temp = 0
+    planet.max_temp = 0
+    planet.min_temp = 0
+    planet.greenhs_rise = 0
+    planet.planet_no = 0  # TODO(woursler): Figure this out.
+    planet.sun = sun
+    planet.resonant_period = False
+
+    planet.orbit_zone = orb_zone(sun.luminosity, planet.a)
+
+    planet.orb_period = period(planet.a, planet.mass, sun.mass)
+    if random_tilt:
+        planet.axial_tilt = inclination(planet.a)
+    planet.exospheric_temp = EARTH_EXOSPHERE_TEMP / \
+        ((planet.a / sun.r_ecosphere) ** 2)
+    planet.rms_velocity = rms_vel(MOL_NITROGEN, planet.exospheric_temp)
+    planet.core_radius = kothari_radius(
+        planet.dust_mass, False, planet.orbit_zone)
+
+    # Calculate the radius as a gas giant, to verify it will retain gas.
+    # Then if mass > Earth, it's at least 5% gas and retains He, it's
+    # some flavor of gas giant.
+
+    planet.density = empirical_density(
+        planet.mass, planet.a, sun.r_ecosphere, True)
+    planet.radius = volume_radius(planet.mass, planet.density)
+
+    planet.surf_accel = acceleration(planet.mass, planet.radius)
+    planet.surf_grav = gravity(planet.surf_accel)
+
+    planet.molec_weight = min_molec_weight(planet)
+
+    if (((planet.mass * SUN_MASS_IN_EARTH_MASSES) > 1.0)
+        and ((planet.gas_mass / planet.mass) > 0.05)
+            and (min_molec_weight(planet) <= 4.0)):
+
+        if ((planet.gas_mass / planet.mass) < 0.20):
+            planet.type = PlanetType.SUB_SUB_GAS_GIANT
+        elif ((planet.mass * SUN_MASS_IN_EARTH_MASSES) < 20.0):
+            planet.type = PlanetType.SUB_GAS_GIANT
+        else:
+            planet.type = PlanetType.GAS_GIANT
+
+    else:  # If not, it's rocky.
+
+        planet.radius = kothari_radius(planet.mass, False, planet.orbit_zone)
+        planet.density = volume_density(planet.mass, planet.radius)
+
+        planet.surf_accel = acceleration(planet.mass, planet.radius)
+        planet.surf_grav = gravity(planet.surf_accel)
+
+        if ((planet.gas_mass / planet.mass) > 0.000001):
+
+            h2_mass = planet.gas_mass * 0.85
+            he_mass = (planet.gas_mass - h2_mass) * 0.999
+
+            h2_loss = 0.0
+            he_loss = 0.0
+
+            h2_life = gas_life(MOL_HYDROGEN, planet)
+            he_life = gas_life(HELIUM, planet)
+
+            if (h2_life < sun.age):
+
+                h2_loss = ((1.0 - (1.0 / exp(sun.age / h2_life))) * h2_mass)
+
+                planet.gas_mass -= h2_loss
+                planet.mass -= h2_loss
+
+                planet.surf_accel = acceleration(planet.mass, planet.radius)
+                planet.surf_grav = gravity(planet.surf_accel)
+
+            if (he_life < sun.age):
+
+                he_loss = ((1.0 - (1.0 / exp(sun.age / he_life))) * he_mass)
+
+                planet.gas_mass -= he_loss
+                planet.mass -= he_loss
+
+                planet.surf_accel = acceleration(planet.mass, planet.radius)
+                planet.surf_grav = gravity(planet.surf_accel)
+
+            '''if (((h2_loss + he_loss) > .000001) and (flag_verbose & 0x0080)):
+                fprintf(stderr, "%s\tLosing gas: H2: %5.3Lf EM, He: %5.3Lf EM\n",
+                        planet_id,
+                        h2_loss * SUN_MASS_IN_EARTH_MASSES, he_loss * SUN_MASS_IN_EARTH_MASSES)'''
+
+    planet.day = day_length(planet)    # Modifies planet.resonant_period
+    planet.esc_velocity = escape_vel(planet.mass, planet.radius)
+
+    if ((planet.type == PlanetType.GAS_GIANT) or (planet.type == PlanetType.SUB_GAS_GIANT) or (planet.type == PlanetType.SUB_SUB_GAS_GIANT)):
+
+        planet.greenhouse_effect = False
+        planet.volatile_gas_inventory = INCREDIBLY_LARGE_NUMBER
+        planet.surf_pressure = INCREDIBLY_LARGE_NUMBER
+
+        planet.boil_point = INCREDIBLY_LARGE_NUMBER
+
+        planet.surf_temp = INCREDIBLY_LARGE_NUMBER
+        planet.greenhs_rise = 0
+        planet.albedo = about(GAS_GIANT_ALBEDO, 0.1)
+        planet.hydrosphere = 1.0
+        planet.cloud_cover = 1.0
+        planet.ice_cover = 0.0
+        planet.surf_grav = gravity(planet.surf_accel)
+        planet.molec_weight = min_molec_weight(planet)
+        planet.surf_grav = INCREDIBLY_LARGE_NUMBER
+        planet.estimated_temp = est_temp(
+            sun.r_ecosphere, planet.a,  planet.albedo)
+        planet.estimated_terr_temp = est_temp(
+            sun.r_ecosphere, planet.a,  EARTH_ALBEDO)
+
+        temp = planet.estimated_terr_temp
+
+        if ((temp >= FREEZING_POINT_OF_WATER) and (temp <= EARTH_AVERAGE_KELVIN + 10.) and (sun.age > 2.0E9)):
+            pass
+            '''if (flag_verbose & 0x8000):
+
+                fprintf (stderr, "%s\t%s (%4.2LfEM %5.3Lf By)%s with earth-like temperature (%.1Lf C, %.1Lf F, %+.1Lf C Earth).\n",
+                         planet_id,
+                         planet.type == PlanetType.GAS_GIANT ? "Jovian" :
+                         planet.type == PlanetType.SUB_GAS_GIANT ? "Sub-Jovian" :
+                         planet.type == PlanetType.SUB_SUB_GAS_GIANT ? "Gas Dwarf" :
+                         "Big",
+                         planet.mass * SUN_MASS_IN_EARTH_MASSES,
+                         sun.age /1.0E9,
+                         planet.first_moon == NULL ? "" : " WITH MOON",
+                         temp - FREEZING_POINT_OF_WATER,
+                         32 + ((temp - FREEZING_POINT_OF_WATER) * 1.8),
+                         temp - EARTH_AVERAGE_KELVIN)'''
+
+    else:
+
+        planet.estimated_temp = est_temp(
+            sun.r_ecosphere, planet.a,  EARTH_ALBEDO)
+        planet.estimated_terr_temp = est_temp(
+            sun.r_ecosphere, planet.a,  EARTH_ALBEDO)
+
+        planet.surf_grav = gravity(planet.surf_accel)
+        planet.molec_weight = min_molec_weight(planet)
+
+        planet.greenhouse_effect = grnhouse(sun.r_ecosphere, planet.a)
+        planet.volatile_gas_inventory = vol_inventory(planet.mass,
+                                                      planet.esc_velocity,
+                                                      planet.rms_velocity,
+                                                      sun.mass,
+                                                      planet.orbit_zone,
+                                                      planet.greenhouse_effect,
+                                                      (planet.gas_mass
+                                                       / planet.mass) > 0.000001)
+        planet.surf_pressure = pressure(planet.volatile_gas_inventory,
+                                        planet.radius,
+                                        planet.surf_grav)
+
+        if ((planet.surf_pressure == 0.0)):
+            planet.boil_point = 0.0
+        else:
+            planet.boil_point = boiling_point(planet.surf_pressure)
+
+        # Sets:
+        # planet.surf_temp
+        # planet.greenhs_rise
+        # planet.albedo
+        # planet.hydrosphere
+        # planet.cloud_cover
+        # planet.ice_cover
+        iterate_surface_temp(planet)
+
+        if (do_gases and (planet.max_temp >= FREEZING_POINT_OF_WATER) and (planet.min_temp <= planet.boil_point)):
+            calculate_gases(sun, planet, planet_id)
+
+        # Next we assign a type to the planet.
+
+        if (planet.surf_pressure < 1.0):
+
+            if (not is_moon) and ((planet.mass * SUN_MASS_IN_EARTH_MASSES) < ASTEROID_MASS_LIMIT):
+                planet.type = PlanetType.ASTERIODS
+            else:
+                planet.type = PlanetType.ROCK
+
+        elif (planet.surf_pressure > 6000.0) and (planet.molec_weight <= 2.0):    # Retains Hydrogen
+
+            planet.type = PlanetType.SUB_SUB_GAS_GIANT
+            planet.gases = 0
+            planet.atmosphere = None
+
+        else:
+                                                # Atmospheres:
+            if (int(planet.day) == int(planet.orb_period * 24.0)) or planet.resonant_period:
+                planet.type = PlanetType.ONE_FACE
+            elif (planet.hydrosphere >= 0.95):
+                planet.type = PlanetType.WATER                # >95% water
+            elif (planet.ice_cover >= 0.95):
+                planet.type = PlanetType.ICE                # >95% ice
+            elif (planet.hydrosphere > 0.05):
+                planet.type = PlanetType.TERRESTRIAL        # Terrestrial
+                # else <5% water
+            elif (planet.max_temp > planet.boil_point):
+                planet.type = PlanetType.VENUSIAN            # Hot = Venusian
+            elif ((planet.gas_mass / planet.mass) > 0.0001):
+                                                    # Accreted gas
+                planet.type = PlanetType.ICE                # But no Greenhouse
+                planet.ice_cover = 1.0            # or liquid water
+                # Make it an Ice World
+            elif (planet.surf_pressure <= 250.0):  # Thin air = Martian
+                planet.type = PlanetType.MARTIAN
+            elif (planet.surf_temp < FREEZING_POINT_OF_WATER):
+                planet.type = PlanetType.ICE
+            else:
+                planet.type = PlanetType.UNKNOWN
+
+                '''if (flag_verbose & 0x0001)
+                    fprintf (stderr, "%12s\tp=%4.2Lf\tm=%4.2Lf\tg=%4.2Lf\tt=%+.1Lf\t%s\t Unknown %s\n",
+                                    type_string (planet.type),
+                                    planet.surf_pressure,
+                                    planet.mass * SUN_MASS_IN_EARTH_MASSES,
+                                    planet.surf_grav,
+                                    planet.surf_temp  - EARTH_AVERAGE_KELVIN,
+                                    planet_id,
+                                    ((int)planet.day == (int)(planet.orb_period * 24.0) or
+                                     (planet.resonant_period)) ? "(1-Face)" : ""
+                             )'''
+
+    if do_moons and not is_moon:
+        for protomoon in protoplanent.moons:
+            if (protomoon.mass * SUN_MASS_IN_EARTH_MASSES > .000001):
+
+                roche_limit = 0.0
+                hill_sphere = 0.0
+
+                protomoon.a = planet.a
+                protomoon.e = planet.e
+
+                # Note: adjusts density.
+                generate_planet(
+                    protoplanent=protomoon,
+                    sun=sun,
+                    random_tilt=random_tilt,
+                    do_gases=do_gases,
+                    do_moons=do_moons,
+                    is_moon=True
+                )
+
+                roche_limit = 2.44 * planet.radius * \
+                    pow((planet.density / protomoon.density), (1.0 / 3.0))
+                hill_sphere = planet.a * KM_PER_AU * \
+                    pow((planet.mass / (3.0 * sun.mass)), (1.0 / 3.0))
+
+                if ((roche_limit * 3.0) < hill_sphere):
+                    protomoon.moon_a = random_number(
+                        roche_limit * 1.5, hill_sphere / 2.0) / KM_PER_AU
+                    protomoon.moon_e = random_eccentricity()
+
+                else:
+
+                    protomoon.moon_a = 0
+                    protomoon.moon_e = 0
+
+                '''if (flag_verbose & 0x40000):
+
+                    fprintf (stderr,
+                                "   Roche limit: R = %4.2Lg, rM = %4.2Lg, rm = %4.2Lg . %.0Lf km\n"
+                                "   Hill Sphere: a = %4.2Lg, m = %4.2Lg, M = %4.2Lg . %.0Lf km\n"
+                                "%s Moon orbit: a = %.0Lf km, e = %.0Lg\n",
+                                planet.radius, planet.density, ptr.density,
+                                roche_limit,
+                                planet.a * KM_PER_AU, planet.mass * SOLAR_MASS_IN_KILOGRAMS, sun.mass * SOLAR_MASS_IN_KILOGRAMS,
+                                hill_sphere,
+                                moon_id,
+                                ptr.moon_a * KM_PER_AU, ptr.moon_e
+                            )
+
+
+                if (flag_verbose & 0x1000):
+
+                    fprintf (stderr, "  %s: (%7.2LfEM) %d %4.2LgEM\n",
+                        planet_id,
+                        planet.mass * SUN_MASS_IN_EARTH_MASSES,
+                        n,
+                        ptr.mass * SUN_MASS_IN_EARTH_MASSES)'''
+
 
 def generate_planets(star, flag_char, do_gasses, do_moons):
     logging.warning("generate_planets( ... ) not implemented yet.")  # TODO

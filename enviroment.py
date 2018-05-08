@@ -21,25 +21,17 @@ from constants import AN_O
 from constants import MOL_NITROGEN, MOL_HYDROGEN
 from constants import WATER_VAPOR, ATOMIC_NITROGEN
 from constants import MIN_O2_IPP, MAX_O2_IPP, H20_ASSUMED_PRESSURE
-from constants import EARTH_ALBEDO, ICE_ALBEDO, CLOUD_ALBEDO, GAS_GIANT_ALBEDO, AIRLESS_ICE_ALBEDO, GREENHOUSE_TRIGGER_ALBEDO, ROCKY_ALBEDO, ROCKY_AIRLESS_ALBEDO, WATER_ALBEDO
+from constants import EARTH_ALBEDO, ICE_ALBEDO, CLOUD_ALBEDO, AIRLESS_ICE_ALBEDO, GREENHOUSE_TRIGGER_ALBEDO, ROCKY_ALBEDO, ROCKY_AIRLESS_ALBEDO, WATER_ALBEDO
 
 # Tunable constants?
 from constants import J
+
+from util import pow1_4, pow2, pow3, about
 
 # TODO(woursler): Break this file up.
 
 # TODO(woursler): This whole file desperately needs natu.
 
-
-# TODO(woursler): Remove these and move them into functions.
-def pow1_4(x):
-  return x ** (1. / 4.)
-
-def pow2(x):
-  return x ** 2
-
-def pow3(x):
-  return x ** 3
 
 class BreathabilityPhrase(Enum):
     NONE = 0
@@ -100,10 +92,11 @@ def volume_radius(mass, density):
 
 # These constants are specific to kothari_radius.
 # All units are in cgs system, ie: cm, g, dynes, etc.
-A1_20	= 6.485E12
-A2_20	= 4.0032E-8
+A1_20 = 6.485E12
+A2_20 = 4.0032E-8
 BETA_20 = 5.71E12
-JIMS_FUDGE	= 1.004
+JIMS_FUDGE = 1.004
+
 
 def kothari_radius(mass, giant, zone):
     '''Returns the radius of the planet in kilometers. '''
@@ -194,7 +187,7 @@ def period(separation, small_mass, large_mass):
 def day_length(planet):
     '''Fogg's information for self routine came from Dole "Habitable Planets'''
     '''for Man", Publishing Company, NY, 1964.  From self, came'''
-    '''up with his eq.12, is the equation for the 'base_angular_velocity''''
+    '''up with his eq.12, is the equation for the 'base_angular_velocity' '''
     '''below.  He then used an equation for the change in angular velocity per'''
     '''time (dw/dt) from P. Goldreich and S. Soter's paper "Q in the Solar '''
     '''System" in Icarus, 5, pp.375-389 (1966).   Using as a comparison the'''
@@ -362,16 +355,18 @@ def hydro_fraction(volatile_gas_inventory, planet_radius):
     '''I have changed the function very slightly:   the fraction of Earth's'''
     '''surface covered by water is 71%, not 75% as Fogg used. '''
 
-    temp = (0.71 * volatile_gas_inventory / 1000.0) * ((KM_EARTH_RADIUS / planet_radius) ** 2)
+    temp = (0.71 * volatile_gas_inventory / 1000.0) * \
+        ((KM_EARTH_RADIUS / planet_radius) ** 2)
     if temp >= 1.0:
         return 1.0
     else:
         return temp
 
 
+# Constant only used here and not really explained.
+Q2_36 = 0.0698  # 1/Kelvin
 
-#Constant only used here and not really explained.
-Q2_36 = 0.0698 # 1/Kelvin
+
 def cloud_fraction(surf_temp, smallest_MW_retained, equat_radius, hydro_fraction):
     '''Given the surface temperature of a planet (in Kelvin), function'''
     '''returns the fraction of cloud cover available.   This is Fogg's eq.23.'''
@@ -449,8 +444,10 @@ def green_rise(optical_depth, effective_temp, surf_pressure):
     '''units of Kelvin, is the rise in temperature produced by the '''
     '''greenhouse effect, is returned. '''
     '''I tuned self by changing a pow(x,.25) to pow(x,.4) to match Venus - JLB'''
-    convection_factor = EARTH_CONVECTION_FACTOR *  pow(surf_pressure / EARTH_SURF_PRES_IN_MILLIBARS, 0.4)
-    rise = (pow1_4(1.0 + 0.75 * optical_depth) - 1.0) * effective_temp * convection_factor
+    convection_factor = EARTH_CONVECTION_FACTOR * \
+        pow(surf_pressure / EARTH_SURF_PRES_IN_MILLIBARS, 0.4)
+    rise = (pow1_4(1.0 + 0.75 * optical_depth) - 1.0) * \
+        effective_temp * convection_factor
 
     if (rise < 0.0):
         rise = 0.0
@@ -540,11 +537,8 @@ def opacity(molecular_weight, surf_pressure):
 
 
 def gas_life(molecular_weight, planet):
- '''
-     *  calculates the number of years it takes for 1/e of a gas to escape
-     *  from a planet's atmosphere. 
-     *  Taken from Dole p. 34. He cites Jeans (1916) & Jones (1923)
- '''
+    ''' calculates the number of years it takes for 1/e of a gas to escape  from a planet's atmosphere.
+    Taken from Dole p. 34. He cites Jeans (1916) & Jones (1923)'''
     v = rms_vel(molecular_weight, planet.exospheric_temp)
     g = planet.surf_grav * EARTH_ACCELERATION
     r = (planet.radius * CM_PER_KM)
@@ -707,10 +701,10 @@ def calculate_surface_temp(planet, first, last_water, last_clouds, last_ice, las
 
     set_temp_range(planet)
 
- '''
+    '''
   if VERBOSE:
     fprintf (stderr, "%5.1Lf AU: %5.1Lf = %5.1Lf ef + %5.1Lf gh%c "
-        "(W: %4.2Lf (%4.2Lf) C: %4.2Lf (%4.2Lf) I: %4.2Lf A: (%4.2Lf))\n", 
+        "(W: %4.2Lf (%4.2Lf) C: %4.2Lf (%4.2Lf) I: %4.2Lf A: (%4.2Lf))\n",
         planet.a,
         planet.surf_temp - FREEZING_POINT_OF_WATER,
         effective_temp - FREEZING_POINT_OF_WATER,
@@ -759,7 +753,7 @@ def iterate_surface_temp(planet):
 
     planet.greenhs_rise = planet.surf_temp - initial_temp
 
- '''
+    '''
     if VERBOSE:
         fprintf(stderr, "%d: %5.gh = %5.1Lf (%5.1Lf C) st - %5.1Lf it [%5.1Lf re %5.1Lf a %5.1Lf alb]\n",
                 planet.planet_no,
