@@ -26,6 +26,7 @@ def generate_stellar_system(star, do_gases=True, do_moons=True):
         star, 0.0, star.stellar_dust_limit, do_moons)
     for p in protoplanets:
         print(p)
+        print(generate_planet(p, star))
     flag_char = None  # TODO: Remove / replace
     system = generate_planets(star, flag_char, do_gases, do_moons)
     return system
@@ -175,6 +176,10 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
         logging.info("New Protoplanet at " + str(canidate.a) + "AU.")
         planets.append(convert_planetesimal_to_protoplanet(canidate))
 
+
+def generate_planet(protoplanent, sun, random_tilt=0, planet_id=None, do_gases=True, do_moons=True, is_moon=False):
+    logging.warning("generate_planet( ... ) not implemented yet.")  # TODO
+    return
 
 def generate_planets(star, flag_char, do_gasses, do_moons):
     logging.warning("generate_planets( ... ) not implemented yet.")  # TODO

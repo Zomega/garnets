@@ -26,17 +26,12 @@ from constants import EARTH_ALBEDO, ICE_ALBEDO, CLOUD_ALBEDO, GAS_GIANT_ALBEDO, 
 # Tunable constants?
 from constants import J
 
-# TODO(woursler): Remove these
-
 # TODO(woursler): Break this file up.
 
 # TODO(woursler): This whole file desperately needs natu.
 
-# TODO(woursler): Figure out what constants we use here that need to be added to constants.py.
-VERBOSE = True
 
-
-# TODO(woursler): Remove these, they're kinda stupid.
+# TODO(woursler): Remove these and move them into functions.
 def pow1_4(x):
   return x ** (1. / 4.)
 
