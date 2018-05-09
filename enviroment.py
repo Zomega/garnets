@@ -18,19 +18,23 @@ from constants import EARTH_RADIUS, EARTH_DENSITY, EARTH_MASS_IN_GRAMS, EARTH_AX
 from constants import CLOUD_COVERAGE_FACTOR, GAS_RETENTION_THRESHOLD
 from constants import FREEZING_POINT_OF_WATER
 from constants import AN_O
-from constants import MOL_NITROGEN, MOL_HYDROGEN
-from constants import WATER_VAPOR, ATOMIC_NITROGEN
+from constants import MOL_HYDROGEN, MOL_NITROGEN, ATOMIC_NITROGEN
+from constants import WATER_VAPOR
 from constants import MIN_O2_IPP, MAX_O2_IPP, H20_ASSUMED_PRESSURE
 from constants import EARTH_ALBEDO, ICE_ALBEDO, CLOUD_ALBEDO, AIRLESS_ICE_ALBEDO, GREENHOUSE_TRIGGER_ALBEDO, ROCKY_ALBEDO, ROCKY_AIRLESS_ALBEDO, WATER_ALBEDO
 
 # Tunable constants?
 from constants import J
 
+from tabulate import tabulate
+
 from util import pow1_4, pow2, pow3, about
 
 # TODO(woursler): Break this file up.
 
 # TODO(woursler): This whole file desperately needs natu.
+
+VERBOSE = True
 
 
 class BreathabilityPhrase(Enum):
@@ -701,43 +705,48 @@ def calculate_surface_temp(planet, first, last_water, last_clouds, last_ice, las
 
     set_temp_range(planet)
 
-    '''
-  if VERBOSE:
-    fprintf (stderr, "%5.1Lf AU: %5.1Lf = %5.1Lf ef + %5.1Lf gh%c "
-        "(W: %4.2Lf (%4.2Lf) C: %4.2Lf (%4.2Lf) I: %4.2Lf A: (%4.2Lf))\n",
-        planet.a,
-        planet.surf_temp - FREEZING_POINT_OF_WATER,
-        effective_temp - FREEZING_POINT_OF_WATER,
-        greenhouse_temp,
-        (planet.greenhouse_effect) ? '*' :' ',
-        planet.hydrosphere, water_raw,
-        planet.cloud_cover, clouds_raw,
-        planet.ice_cover,
-        planet.albedo)'''
+    if VERBOSE:
+        print(tabulate([
+            ["AU", planet.a],
+            ["Surface Temp C", planet.surf_temp - FREEZING_POINT_OF_WATER],
+            ["Effective Temp C", effective_temp - FREEZING_POINT_OF_WATER],
+            ["Greenhouse Temp", greenhouse_temp],
+            ["Water Cover", planet.hydrosphere],
+            ["water_raw", water_raw],
+            ["Cloud Cover", planet.cloud_cover],
+            ["clouds_raw", clouds_raw],
+            ["Ice Cover", planet.ice_cover],
+            ["Albedo", planet.albedo],
+        ]))
 
 
 def iterate_surface_temp(planet):
-    count = 0
     initial_temp = est_temp(planet.sun.r_ecosphere, planet.a, planet.albedo)
 
-    h2_life = gas_life(MOL_HYDROGEN,    planet)
-    h2o_life = gas_life(WATER_VAPOR,     planet)
-    n2_life = gas_life(MOL_NITROGEN,    planet)
-    n_life = gas_life(ATOMIC_NITROGEN, planet)
+    if VERBOSE:
+        print(tabulate([
+            ["Planet No", planet.planet_no],
+            ["Initial temp", initial_temp],
+            ["Solar Ecosphere", planet.sun.r_ecosphere]
+            ["AU", planet.a],
+            ["Albedo", planet.albedo],
+        ]))
 
-    '''if VERBOSE:
-        fprintf(stderr, "%d:                     %5.1Lf it [%5.1Lf re %5.1Lf a %5.1Lf alb]\n",
-                planet.planet_no,
-                initial_temp,
-                planet.sun.r_ecosphere, planet.a, planet.albedo
-                )
+        h2_life = gas_life(MOL_HYDROGEN,    planet)
+        h2o_life = gas_life(WATER_VAPOR,     planet)
+        n2_life = gas_life(MOL_NITROGEN,    planet)
+        n_life = gas_life(ATOMIC_NITROGEN, planet)
 
-        fprintf(stderr, "\nGas lifetimes: H2 - %Lf, H2O - %Lf, N - %Lf, N2 - %Lf\n",
-                h2_life, h2o_life, n_life, n2_life)'''
+        print('Gas lifetimes:\n' + tabulate([
+            ['H2', h2_life],
+            ['H2O', h2o_life],
+            ['N', n_life],
+            ['N2', n2_life],
+        ]))
 
     calculate_surface_temp(planet, True, 0, 0, 0, 0, 0)
 
-    for _ in range(26):  # TODO(woursler): WTF is this magic number?
+    for _ in range(26):  # TODO(woursler): WTF is this magic number? just an iteration limit? Should be a param.
         last_water = planet.hydrosphere
         last_clouds = planet.cloud_cover
         last_ice = planet.ice_cover
@@ -766,11 +775,9 @@ def iterate_surface_temp(planet):
 '''
 
 
-'''Inspired partial pressure, takes into account humidification of the'''
-'''air in the nasal passage and throat This formula is on Dole's p. 14'''
-
-
 def inspired_partial_pressure(surf_pressure, gas_pressure):
+    '''Inspired partial pressure, takes into account humidification of the'''
+    '''air in the nasal passage and throat This formula is on Dole's p. 14'''
     pH2O = H20_ASSUMED_PRESSURE
     fraction = gas_pressure / surf_pressure
 

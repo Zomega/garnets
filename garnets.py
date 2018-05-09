@@ -1,6 +1,6 @@
 import logging
 import random
-from math import sqrt
+from math import sqrt, log
 from stellar_system import Star
 from stellar_system import Planetesimal
 from stellar_system import Protoplanet
@@ -12,14 +12,17 @@ from constants import SUN_MASS_IN_EARTH_MASSES
 from constants import EARTH_ALBEDO, GAS_GIANT_ALBEDO, FREEZING_POINT_OF_WATER, KM_PER_AU, EARTH_AVERAGE_KELVIN, EARTH_EXOSPHERE_TEMP
 from constants import MOL_NITROGEN, MOL_HYDROGEN, HELIUM
 from constants import ASTEROID_MASS_LIMIT
+from constants import MILLIBARS_PER_BAR
 
 from enviroment import kothari_radius, gas_life, rms_vel, est_temp, period, day_length, acceleration, gravity, min_molec_weight, orb_zone, volume_radius, volume_density, grnhouse, boiling_point, escape_vel, empirical_density, inclination, iterate_surface_temp, pressure, vol_inventory
 from enviroment import PlanetType
 
 from math import exp
-from math import inf as INCREDIBLY_LARGE_NUMBER
+from math import inf as INCREDIBLY_LARGE_NUMBER  # TODO(woursler): Just use inf
 
 from util import about, random_number, random_eccentricity
+
+from chemtable import gases
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -39,9 +42,6 @@ def generate_stellar_system(star, do_gases=True, do_moons=True):
     for p in protoplanets:
         print(p)
         print(generate_planet(p, star))
-    flag_char = None  # TODO: Remove / replace
-    system = generate_planets(star, flag_char, do_gases, do_moons)
-    return system
 
 # Create protoplanets.
 
@@ -190,7 +190,124 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
 
 
 def calculate_gases(sun, planet, planet_id):
-    raise NotImplementedError("calculate_gases is not ported form stargen.c")
+    if planet.surf_pressure > 0:
+
+        amount = [0 for _ in range(len(gases))]
+        totamount = 0
+        pressure = planet.surf_pressure/MILLIBARS_PER_BAR
+        n = 0
+
+        for i in range(len(gases)):
+
+            yp = gases[i].boil / \
+                (373. * ((log((pressure) + 0.001) / -5050.5) + (1.0 / 373.)))
+
+            if ((yp >= 0 and yp < planet.low_temp) and (gases[i].weight >= planet.molec_weight)):
+
+                vrms = rms_vel(gases[i].weight, planet.exospheric_temp)
+                pvrms = pow(1 / (1 + vrms / planet.esc_velocity),
+                            sun.age / 1e9)
+                abund = gases[i].abunds                 # gases[i].abunde
+                react = 1.0
+                fract = 1.0
+                pres2 = 1.0
+
+                if gases[i].symbol == "Ar":
+                    react = .15 * sun.age/4e9
+
+                elif gases[i].symbol == "He":
+
+                    abund = abund * (0.001 + (planet.gas_mass / planet.mass))
+                    pres2 = (0.75 + pressure)
+                    react = pow(1 / (1 + gases[i].reactivity),
+                                sun.age/2e9 * pres2)
+
+                elif (gases[i].symbol == "O" or gases[i].symbol == "O2") and sun.age > 2e9 and planet.surf_temp > 270 and planet.surf_temp < 400:
+                    pres2 = (0.89 + pressure/4)
+                    react = pow(
+                        1 / (1 + gases[i].reactivity), pow(sun.age/2e9, 0.25) * pres2)
+
+                elif gases[i].symbol == "CO2" and sun.age > 2e9 and planet.surf_temp > 270 and planet.surf_temp < 400:
+                    pres2 = (0.75 + pressure)
+                    react = pow(
+                        1 / (1 + gases[i].reactivity), pow(sun.age/2e9, 0.5) * pres2)
+                    react *= 1.5
+
+                else:
+                    pres2 = 0.75 + pressure
+                    react = pow(
+                        1 / (1 + gases[i].reactivity), sun.age/2e9 * pres2)
+
+                fract = (1 - (planet.molec_weight / gases[i].weight))
+
+                amount[i] = abund * pvrms * react * fract
+
+                '''if ((flag_verbose & 0x4000) and
+                    (strcmp(gases[i].symbol, "O") == 0 or
+                     strcmp(gases[i].symbol, "N") == 0 or
+                     strcmp(gases[i].symbol, "Ar") == 0 or
+                     strcmp(gases[i].symbol, "He") == 0 or
+                     strcmp(gases[i].symbol, "CO2") == 0))
+
+                    fprintf (stderr, "%-5.2Lf %-3.3s, %-5.2Lf = a %-5.2Lf * p %-5.2Lf * r %-5.2Lf * p2 %-5.2Lf * f %-5.2Lf\t(%.3Lf%%)\n",
+                              planet.mass * SUN_MASS_IN_EARTH_MASSES,
+                              gases[i].symbol,
+                              amount[i],
+                              abund,
+                              pvrms,
+                              react,
+                              pres2,
+                              fract,
+                              100.0 * (planet.gas_mass / planet.mass)
+                             )'''
+
+                totamount += amount[i]
+                if (amount[i] > 0.0):
+                    n += 1
+
+            else:
+                amount[i] = 0.0
+
+        if n > 0:
+
+            planet.gases = n
+            planet.atmosphere = [0 for _ in range(len(gases))]  # DO NOT COMMIT
+
+            for i in range(len(gases)):
+
+                if amount[i] > 0.0:
+
+                    planet.atmosphere[n].num = gases[i].num
+                    planet.atmosphere[n].surf_pressure = planet.surf_pressure * \
+                        amount[i] / totamount
+
+                    '''if (flag_verbose & 0x2000)
+
+                        if ((planet.atmosphere[n].num == AN_O) and
+                            inspired_partial_pressure (planet.surf_pressure,
+                                                       planet.atmosphere[n].surf_pressure)
+                            > gases[i].max_ipp)
+
+                            fprintf (stderr, "%s\t Poisoned by O2\n",
+                                     planet_id)'''
+
+                    n += 1
+
+            # TODO(woursler): sort planet.atmosphere
+
+            '''if (flag_verbose & 0x0010):
+
+                fprintf (stderr, "\n%s (%5.1Lf AU) gases:\n",
+                        planet_id, planet.a)
+
+                for (i = 0; i < planet.gases; i++)
+
+                    fprintf (stderr, "%3d: %6.1Lf, %11.7Lf%%\n",
+                            planet.atmosphere[i].num,
+                            planet.atmosphere[i].surf_pressure,
+                            100. * (planet.atmosphere[i].surf_pressure /
+                                    planet.surf_pressure)
+                            )'''
 
 
 def generate_planet(protoplanent, sun, random_tilt=0, planet_id=None, do_gases=True, do_moons=True, is_moon=False):
@@ -447,6 +564,7 @@ def generate_planet(protoplanent, sun, random_tilt=0, planet_id=None, do_gases=T
                     is_moon=True
                 )
 
+                # TODO(woursler): these should be their own subroutines.
                 roche_limit = 2.44 * planet.radius * \
                     pow((planet.density / protomoon.density), (1.0 / 3.0))
                 hill_sphere = planet.a * KM_PER_AU * \
@@ -484,11 +602,6 @@ def generate_planet(protoplanent, sun, random_tilt=0, planet_id=None, do_gases=T
                         planet.mass * SUN_MASS_IN_EARTH_MASSES,
                         n,
                         ptr.mass * SUN_MASS_IN_EARTH_MASSES)'''
-
-
-def generate_planets(star, flag_char, do_gasses, do_moons):
-    logging.warning("generate_planets( ... ) not implemented yet.")  # TODO
-    return
 
 
 ###
