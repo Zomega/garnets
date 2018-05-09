@@ -210,6 +210,7 @@ class Planet():
         return tabulate([
             ['Type', self.type],
             ['Mass', mass_repr(self.mass)],
+            ['Radius', str(self.radius) + " km"],
             ['Orbit', self.orbit],
             ['Surface gravity', str(self.surf_grav) + ' g'],
             ['Surface pressure', str(self.surf_pressure / MILLIBARS_PER_ATM) + ' atm'],
