@@ -11,12 +11,14 @@ from enviroment import PlanetType
 from tabulate import tabulate
 
 
-@attrs
+@attrs(repr=False)
 class Star():
     mass_ratio = attrib()
     age = attrib()
 
     name = attrib(default="Unnamed Star")
+
+    planets = attrib(default=attr.Factory(list))
 
     @property
     # Approximates the luminosity of the star.
@@ -46,6 +48,9 @@ class Star():
     def life(self):  # Source: StarGen, TODO Name? Value?
         return 10**10 * (self.mass_ratio / self.luminosity_ratio)
 
+    def __repr__(self):
+        return self.name + ": mass = " + str(self.mass_ratio) + " solar mass; age = " + str(self.age) + '\n' + '\n'.join([repr(planet) for planet in self.planets])
+
 
 @attrs
 class StellarSystem:
@@ -57,6 +62,14 @@ class StellarSystem:
 class Orbit:
     a = attrib()  # semi-major axis of solar orbit (in AU)
     e = attrib()  # eccentricity of solar orbit
+
+    @property
+    def periapsis(self):
+       return (1 - self.e) * self.a
+
+    @property
+    def apoapsis(self):
+       return (1 + self.e) * self.a
 
     def __repr__(self):
         return 'a = ' + str(self.a) + ' e = ' + str(self.e)

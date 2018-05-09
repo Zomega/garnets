@@ -38,13 +38,21 @@ def random_star():  # TODO: Add seed?
 
 
 def generate_stellar_system(star, do_gases=True, do_moons=True):
-    protoplanets = dist_planetary_masses(
-        star, 0.0, star.stellar_dust_limit, do_moons)
-    planets = [generate_planet(p, star) for p in protoplanets]
-
-    print(star)
-    for planet in planets:
-        print(planet)
+    protoplanets = generate_planetary_masses(
+        star,
+        0.0,
+        star.stellar_dust_limit,
+        do_moons=do_moons
+    )
+    star.planets = [
+        generate_planet(
+            p,
+            star,
+            do_gases=do_gases,
+            do_moons=do_moons
+        ) for p in protoplanets
+    ]
+    return star
 
 # Create protoplanets.
 
@@ -65,7 +73,7 @@ def random_planetesimal(disk):
     )
 
 
-def dist_planetary_masses(star, inner_dust, outer_dust, do_moons=True):
+def generate_planetary_masses(star, inner_dust, outer_dust, do_moons=True):
     disk = CircumstellarDisk(star)
 
     planets = []
@@ -127,17 +135,13 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
         diff = planet.orbit.a - canidate.orbit.a
 
         if diff > 0.0:
-            dist1 = (canidate.orbit.a * (1.0 + canidate.orbit.e) * (1.0 + canidate.reduced_mass)) - canidate.orbit.a
+            dist1 = canidate.orbit.apoapsis * (1.0 + canidate.reduced_mass) - canidate.orbit.a
             # x aphelion
-            dist2 = planet.orbit.a - (planet.orbit.a * (1.0 - planet.orbit.e) * (1.0 - planet.reduced_mass))
+            dist2 = planet.orbit.a - (planet.orbit.periapsis * (1.0 - planet.reduced_mass))
         else:
-            dist1 = (
-                canidate.orbit.a -
-                (canidate.orbit.a * (1.0 - canidate.orbit.e) * (1.0 - canidate.reduced_mass)
-                 ))
+            dist1 = canidate.orbit.a - (canidate.orbit.periapsis * (1.0 - canidate.reduced_mass))
             # x perihelion
-            dist2 = (planet.orbit.a * (1.0 + planet.orbit.e) *
-                     (1.0 + planet.reduced_mass)) - planet.orbit.a
+            dist2 = (planet.orbit.apoapsis * (1.0 + planet.reduced_mass)) - planet.orbit.a
 
         if abs(diff) <= abs(dist1) or abs(diff) <= abs(dist2):
             # Figure out the new orbit.
@@ -192,7 +196,7 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
         planets.append(convert_planetesimal_to_protoplanet(canidate))
 
 
-def calculate_gases(sun, planet, planet_id):
+def calculate_gases(star, planet, planet_id):
     if planet.surf_pressure > 0:
 
         amount = [0 for _ in range(len(gases))]
@@ -209,37 +213,37 @@ def calculate_gases(sun, planet, planet_id):
 
                 vrms = rms_vel(gases[i].weight, planet.exospheric_temp)
                 pvrms = pow(1 / (1 + vrms / planet.esc_velocity),
-                            sun.age / 1e9)
+                            star.age / 1e9)
                 abund = gases[i].abunds                 # gases[i].abunde
                 react = 1.0
                 fract = 1.0
                 pres2 = 1.0
 
                 if gases[i].symbol == "Ar":
-                    react = .15 * sun.age/4e9
+                    react = .15 * star.age/4e9
 
                 elif gases[i].symbol == "He":
 
                     abund = abund * (0.001 + (planet.gas_mass / planet.mass))
                     pres2 = (0.75 + pressure)
                     react = pow(1 / (1 + gases[i].reactivity),
-                                sun.age/2e9 * pres2)
+                                star.age/2e9 * pres2)
 
-                elif (gases[i].symbol == "O" or gases[i].symbol == "O2") and sun.age > 2e9 and planet.surf_temp > 270 and planet.surf_temp < 400:
+                elif (gases[i].symbol == "O" or gases[i].symbol == "O2") and star.age > 2e9 and planet.surf_temp > 270 and planet.surf_temp < 400:
                     pres2 = (0.89 + pressure/4)
                     react = pow(
-                        1 / (1 + gases[i].reactivity), pow(sun.age/2e9, 0.25) * pres2)
+                        1 / (1 + gases[i].reactivity), pow(star.age/2e9, 0.25) * pres2)
 
-                elif gases[i].symbol == "CO2" and sun.age > 2e9 and planet.surf_temp > 270 and planet.surf_temp < 400:
+                elif gases[i].symbol == "CO2" and star.age > 2e9 and planet.surf_temp > 270 and planet.surf_temp < 400:
                     pres2 = (0.75 + pressure)
                     react = pow(
-                        1 / (1 + gases[i].reactivity), pow(sun.age/2e9, 0.5) * pres2)
+                        1 / (1 + gases[i].reactivity), pow(star.age/2e9, 0.5) * pres2)
                     react *= 1.5
 
                 else:
                     pres2 = 0.75 + pressure
                     react = pow(
-                        1 / (1 + gases[i].reactivity), sun.age/2e9 * pres2)
+                        1 / (1 + gases[i].reactivity), star.age/2e9 * pres2)
 
                 fract = (1 - (planet.molec_weight / gases[i].weight))
 
@@ -313,12 +317,12 @@ def calculate_gases(sun, planet, planet_id):
 def roche_limit(planet, moon):
     return 2.44 * planet.radius * pow((planet.density / moon.density), (1.0 / 3.0))
 
-def hill_sphere(planet, sun):
-    return planet.orbit.a * KM_PER_AU * pow((planet.mass / (3.0 * sun.mass_ratio)), (1.0 / 3.0))
+def hill_sphere(planet, star):
+    return planet.orbit.a * KM_PER_AU * pow((planet.mass / (3.0 * star.mass_ratio)), (1.0 / 3.0))
 
-def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=True, do_moons=True, is_moon=False):
+def generate_planet(protoplanet, star, random_tilt=0, planet_id=None, do_gases=True, do_moons=True, is_moon=False):
     planet = Planet(
-        sun=sun,
+        sun=star,
         orbit=protoplanet.orbit,
         dust_mass=protoplanet.dust_mass,
         gas_mass=protoplanet.gas_mass,
@@ -332,12 +336,12 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
         min_temp=0,
         greenhs_rise=0,
         resonant_period=False,
-        orbit_zone=orb_zone(sun.luminosity_ratio,  protoplanet.orbit.a),
-        orb_period=period(protoplanet.orbit.a,  protoplanet.mass, sun.mass_ratio)
+        orbit_zone=orb_zone(star.luminosity_ratio,  protoplanet.orbit.a),
+        orb_period=period(protoplanet.orbit.a,  protoplanet.mass, star.mass_ratio)
     )
 
     planet.exospheric_temp = EARTH_EXOSPHERE_TEMP / \
-        ((planet.orbit.a / sun.r_ecosphere) ** 2)
+        ((planet.orbit.a / star.r_ecosphere) ** 2)
     planet.rms_velocity = rms_vel(MOL_NITROGEN, planet.exospheric_temp)
     planet.core_radius = kothari_radius(
         planet.dust_mass, False, planet.orbit_zone)
@@ -347,7 +351,7 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
     # some flavor of gas giant.
 
     planet.density = empirical_density(
-        planet.mass, planet.orbit.a, sun.r_ecosphere, True)
+        planet.mass, planet.orbit.a, star.r_ecosphere, True)
     planet.radius = volume_radius(planet.mass, planet.density)
 
     planet.surf_accel = acceleration(planet.mass, planet.radius)
@@ -385,9 +389,9 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
             h2_life = gas_life(MOL_HYDROGEN, planet)
             he_life = gas_life(HELIUM, planet)
 
-            if (h2_life < sun.age):
+            if (h2_life < star.age):
 
-                h2_loss = ((1.0 - (1.0 / exp(sun.age / h2_life))) * h2_mass)
+                h2_loss = ((1.0 - (1.0 / exp(star.age / h2_life))) * h2_mass)
 
                 planet.gas_mass -= h2_loss
                 planet.mass -= h2_loss
@@ -395,9 +399,9 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
                 planet.surf_accel = acceleration(planet.mass, planet.radius)
                 planet.surf_grav = gravity(planet.surf_accel)
 
-            if (he_life < sun.age):
+            if (he_life < star.age):
 
-                he_loss = ((1.0 - (1.0 / exp(sun.age / he_life))) * he_mass)
+                he_loss = ((1.0 - (1.0 / exp(star.age / he_life))) * he_mass)
 
                 planet.gas_mass -= he_loss
                 planet.mass -= he_loss
@@ -431,13 +435,13 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
         planet.molec_weight = min_molec_weight(planet)
         planet.surf_grav = INCREDIBLY_LARGE_NUMBER
         planet.estimated_temp = est_temp(
-            sun.r_ecosphere, planet.orbit.a,  planet.albedo)
+            star.r_ecosphere, planet.orbit.a,  planet.albedo)
         planet.estimated_terr_temp = est_temp(
-            sun.r_ecosphere, planet.orbit.a,  EARTH_ALBEDO)
+            star.r_ecosphere, planet.orbit.a,  EARTH_ALBEDO)
 
         temp = planet.estimated_terr_temp
 
-        if (temp >= FREEZING_POINT_OF_WATER) and (temp <= EARTH_AVERAGE_KELVIN + 10.) and (sun.age > 2.0E9):
+        if (temp >= FREEZING_POINT_OF_WATER) and (temp <= EARTH_AVERAGE_KELVIN + 10.) and (star.age > 2.0E9):
             pass
             '''if (flag_verbose & 0x8000):
 
@@ -448,7 +452,7 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
                          planet.type == PlanetType.SUB_SUB_GAS_GIANT ? "Gas Dwarf" :
                          "Big",
                          planet.mass * SUN_MASS_IN_EARTH_MASSES,
-                         sun.age /1.0E9,
+                         star.age /1.0E9,
                          planet.first_moon == NULL ? "" : " WITH MOON",
                          temp - FREEZING_POINT_OF_WATER,
                          32 + ((temp - FREEZING_POINT_OF_WATER) * 1.8),
@@ -457,18 +461,18 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
     else:
 
         planet.estimated_temp = est_temp(
-            sun.r_ecosphere, planet.orbit.a,  EARTH_ALBEDO)
+            star.r_ecosphere, planet.orbit.a,  EARTH_ALBEDO)
         planet.estimated_terr_temp = est_temp(
-            sun.r_ecosphere, planet.orbit.a,  EARTH_ALBEDO)
+            star.r_ecosphere, planet.orbit.a,  EARTH_ALBEDO)
 
         planet.surf_grav = gravity(planet.surf_accel)
         planet.molec_weight = min_molec_weight(planet)
 
-        planet.greenhouse_effect = grnhouse(sun.r_ecosphere, planet.orbit.a)
+        planet.greenhouse_effect = grnhouse(star.r_ecosphere, planet.orbit.a)
         planet.volatile_gas_inventory = vol_inventory(planet.mass,
                                                       planet.esc_velocity,
                                                       planet.rms_velocity,
-                                                      sun.mass_ratio,
+                                                      star.mass_ratio,
                                                       planet.orbit_zone,
                                                       planet.greenhouse_effect,
                                                       (planet.gas_mass
@@ -492,7 +496,7 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
         iterate_surface_temp(planet)
 
         if (do_gases and (planet.max_temp >= FREEZING_POINT_OF_WATER) and (planet.min_temp <= planet.boil_point)):
-            calculate_gases(sun, planet, planet_id)
+            calculate_gases(star, planet, planet_id)
 
         # Next we assign a type to the planet.
 
@@ -554,7 +558,7 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
                 # Note: adjusts density, which is used in computing the roche limit.
                 moon = generate_planet(
                     protoplanet=protomoon,
-                    sun=sun,
+                    star=star,
                     random_tilt=random_tilt,
                     do_gases=do_gases,
                     do_moons=do_moons,
@@ -563,7 +567,7 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
 
                 # TODO(woursler): these should be their own subroutines.
                 roche_limit_r = roche_limit(planet, moon)
-                hill_sphere_r = hill_sphere(planet, sun)
+                hill_sphere_r = hill_sphere(planet, star)
 
                 if (roche_limit_r * 3.0) < hill_sphere_r:
                     moon_a = random_number(
@@ -585,7 +589,7 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
                                 "%s Moon orbit: a = %.0Lf km, e = %.0Lg\n",
                                 planet.radius, planet.density, ptr.density,
                                 roche_limit,
-                                planet.orbit.a * KM_PER_AU, planet.mass * SOLAR_MASS_IN_KILOGRAMS, sun.mass_ratio * SOLAR_MASS_IN_KILOGRAMS,
+                                planet.orbit.a * KM_PER_AU, planet.mass * SOLAR_MASS_IN_KILOGRAMS, star.mass_ratio * SOLAR_MASS_IN_KILOGRAMS,
                                 hill_sphere,
                                 moon_id,
                                 ptr.moon_a * KM_PER_AU, ptr.moon_e
@@ -606,4 +610,4 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
 # Smoke Test
 ###
 if __name__=='__main__':
-    generate_stellar_system(random_star())
+    print(generate_stellar_system(random_star()))

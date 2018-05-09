@@ -2,6 +2,10 @@ from attr import attrs, attrib
 from constants import AN_H, AN_HE, AN_N, AN_O, AN_NE, AN_AR, AN_KR, AN_XE, AN_NH3, AN_H2O, AN_CO2, AN_O3, AN_CH4
 from constants import MAX_HE_IPP, MAX_N2_IPP, MAX_O2_IPP, MAX_NE_IPP, MAX_AR_IPP, MAX_KR_IPP, MAX_XE_IPP, MAX_NH3_IPP, MAX_CO2_IPP, MAX_O3_IPP, MAX_CH4_IPP
 
+# This module is used for figuring out atmospheric chemistry, but it leaves
+# some things to be desired. In particular, as coded, it does not really
+# consider thick / thin atmospheres very well and does not consider reactions,
+# either amoung gases in an atmosphere, or with regards to fixing in the crust.
 
 @attrs
 class Gas():
