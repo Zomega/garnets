@@ -39,9 +39,10 @@ def random_star():  # TODO: Add seed?
 def generate_stellar_system(star, do_gases=True, do_moons=True):
     protoplanets = dist_planetary_masses(
         star, 0.0, star.stellar_dust_limit, do_moons)
-    for p in protoplanets:
-        print(p)
-        print(generate_planet(p, star))
+    planets = [generate_planet(p, star) for p in protoplanets]
+
+    for planet in planets:
+        print(planet)
 
 # Create protoplanets.
 
@@ -271,15 +272,13 @@ def calculate_gases(sun, planet, planet_id):
         if n > 0:
 
             planet.gases = n
-            planet.atmosphere = [0 for _ in range(len(gases))]
+            planet.atmosphere = []
 
             for i in range(len(gases)):
 
                 if amount[i] > 0.0:
 
-                    planet.atmosphere[n].num = gases[i].num
-                    planet.atmosphere[n].surf_pressure = planet.surf_pressure * \
-                        amount[i] / totamount
+                    planet.atmosphere.append((gases[i], planet.surf_pressure * amount[i] / totamount))
 
                     '''if (flag_verbose & 0x2000)
 
@@ -552,8 +551,8 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
                 protomoon.e = planet.e
 
                 # Note: adjusts density.
-                generate_planet(
-                     protoplanet=protomoon,
+                moon = generate_planet(
+                    protoplanet=protomoon,
                     sun=sun,
                     random_tilt=random_tilt,
                     do_gases=do_gases,
@@ -563,19 +562,20 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
 
                 # TODO(woursler): these should be their own subroutines.
                 roche_limit = 2.44 * planet.radius * \
-                    pow((planet.density / protomoon.density), (1.0 / 3.0))
+                    pow((planet.density / moon.density), (1.0 / 3.0))
                 hill_sphere = planet.a * KM_PER_AU * \
                     pow((planet.mass / (3.0 * sun.mass_ratio)), (1.0 / 3.0))
 
                 if ((roche_limit * 3.0) < hill_sphere):
-                    protomoon.moon_a = random_number(
+                    moon.moon_a = random_number(
                         roche_limit * 1.5, hill_sphere / 2.0) / KM_PER_AU
-                    protomoon.moon_e = random_eccentricity()
+                    moon.moon_e = random_eccentricity()
 
                 else:
+                    moon.moon_a = 0
+                    moon.moon_e = 0
 
-                    protomoon.moon_a = 0
-                    protomoon.moon_e = 0
+                planet.moons.append(moon)
 
                 '''if (flag_verbose & 0x40000):
 
@@ -599,6 +599,7 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
                         planet.mass * SUN_MASS_IN_EARTH_MASSES,
                         n,
                         ptr.mass * SUN_MASS_IN_EARTH_MASSES)'''
+    return planet
 
 
 ###

@@ -538,8 +538,13 @@ def gas_life(molecular_weight, planet):
     v = rms_vel(molecular_weight, planet.exospheric_temp)
     g = planet.surf_grav * EARTH_ACCELERATION
     r = (planet.radius * CM_PER_KM)
-    t = (pow3(v) / (2.0 * pow2(g) * r)) * exp((3.0 * g * r) / pow2(v))
-    years = t / (SECONDS_PER_HOUR * 24.0 * DAYS_IN_A_YEAR)
+    try:
+        t = (pow3(v) / (2.0 * pow2(g) * r)) * exp((3.0 * g * r) / pow2(v))
+        years = t / (SECONDS_PER_HOUR * 24.0 * DAYS_IN_A_YEAR)
+        if years > 2.0E10:
+            years = INCREDIBLY_LARGE_NUMBER
+    except OverflowError:
+        years = INCREDIBLY_LARGE_NUMBER
 
     #  long ve = planet.esc_velocity
     #  long k = 2
@@ -549,9 +554,6 @@ def gas_life(molecular_weight, planet):
     #  if VERBOSE:
     #    fprintf (stderr, "gas_life: %LGs, ratio: %Lf\n",
     #        years, ve / v)
-
-    if years > 2.0E10:
-        years = INCREDIBLY_LARGE_NUMBER
 
     return years
 

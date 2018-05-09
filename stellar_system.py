@@ -3,11 +3,12 @@ from constants import B
 from constants import SUN_MASS_IN_MOON_MASSES
 from constants import SUN_MASS_IN_EARTH_MASSES
 from constants import SUN_MASS_IN_JUPITER_MASSES
+from constants import MILLIBARS_PER_ATM
 from math import sqrt
 from attr import attrs, attrib
 import attr
 from enviroment import PlanetType
-
+from tabulate import tabulate
 
 @attrs
 class Star():
@@ -98,6 +99,12 @@ class Planetesimal(Planetoid):
         temp = perihelion_dist * sqrt(self.disk.star.luminosity_ratio)
         return B * (temp ** -0.75)
 
+def mass_repr(mass):
+    if mass * SUN_MASS_IN_MOON_MASSES <= 50:
+        return str(mass * SUN_MASS_IN_MOON_MASSES) + " M_moon"
+    if mass * SUN_MASS_IN_EARTH_MASSES <= 50:
+        return str(mass * SUN_MASS_IN_EARTH_MASSES) + " M_earth"
+    return str(mass * SUN_MASS_IN_JUPITER_MASSES) + " M_jupiter"
 
 @attrs(repr=False)
 class Protoplanet(Planetoid):
@@ -118,15 +125,9 @@ class Protoplanet(Planetoid):
         return B * (temp ** -0.75)
 
     def __repr__(self):
-        def mass_repr():
-            if self.mass * SUN_MASS_IN_MOON_MASSES <= 50:
-                return str(self.mass * SUN_MASS_IN_MOON_MASSES) + " M_moon"
-            if self.mass * SUN_MASS_IN_EARTH_MASSES <= 50:
-                return str(self.mass * SUN_MASS_IN_EARTH_MASSES) + " M_earth"
-            return str(self.mass * SUN_MASS_IN_JUPITER_MASSES) + " M_jupiter"
 
         return (
-            "\tMass: " + mass_repr() + " = attrib() Orbit: " + str(self.a) +
+            "\tMass: " + mass_repr(self.mass) + " = attrib() Orbit: " + str(self.a) +
             " AU, Moons: " + str(len(self.moons)) + "\n"
         )
 
@@ -139,7 +140,7 @@ class Protomoon(Planetoid):
 # TODO(woursler): Go over these with a fine tooth comb. Many are not relevant, or only relevant during initialization.
 # Many should be properties.
 # Many should be initialized differently.
-@attrs
+@attrs(repr=False)
 class Planet():
     # Orbital details.
     a = attrib()  # semi-major axis of solar orbit (in AU)
@@ -149,6 +150,8 @@ class Planet():
     mass = attrib()    # mass (in solar masses)
     dust_mass = attrib()   # mass, ignoring gas
     gas_mass = attrib()   # mass, ignoring dust
+
+    moons = attrib(default=attr.Factory(list))
 
     #   ZEROES start here -- TODO(woursler): A bunch of these should be other Zero-like types.
     gas_giant = attrib(default=False)   # TRUE if the planet is a gas giant
@@ -185,6 +188,21 @@ class Planet():
     cloud_cover = attrib(default=0)  # fraction of surface covered
     ice_cover = attrib(default=0)   # fraction of surface covered
     sun = attrib(default=0)
-    atmosphere = attrib(default=0)
+    atmosphere = attrib(default=None)
     type = attrib(default=PlanetType.UNKNOWN)    # Type code
     #   ZEROES end here
+
+    def __repr__(self):
+        if self.atmosphere is None:
+            atmosphere_string = "No Atmosphere"
+        else:
+            atmosphere_string = tabulate([[gas.symbol, str(amount) + ' mb'] for gas, amount in self.atmosphere])
+        return tabulate([
+            ['Type', self.type],
+            ['Mass', mass_repr(self.mass)],
+            ['Orbit', 'a = ' + str(self.a) + ' e = ' + str(self.e)],
+            ['Surface gravity', str(self.surf_grav) + ' g'],
+            ['Surface pressure', str(self.surf_pressure / MILLIBARS_PER_ATM) + ' atm'],
+            ['Atmosphere', atmosphere_string],
+            ['Moons', len(self.moons)],
+        ])

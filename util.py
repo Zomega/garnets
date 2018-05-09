@@ -22,5 +22,5 @@ def random_number(a, b):
     return random.uniform(a, b)
 
 
-def random_eccentricity(a, b):
-    raise NotImplementedError("random_number not implemented.")
+def random_eccentricity():
+    return 0  # TODO(woursler): Something less boring.
