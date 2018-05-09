@@ -10,6 +10,7 @@ import attr
 from enviroment import PlanetType
 from tabulate import tabulate
 
+
 @attrs
 class Star():
     mass_ratio = attrib()
@@ -52,10 +53,18 @@ class StellarSystem:
     planets = attrib()
 
 
+@attrs(repr=False)
+class Orbit:
+    a = attrib()  # semi-major axis of solar orbit (in AU)
+    e = attrib()  # eccentricity of solar orbit
+
+    def __repr__(self):
+        return 'a = ' + str(self.a) + ' e = ' + str(self.e)
+
+
 @attrs
 class Planetoid():
-    a = attrib()
-    e = attrib()
+    orbit = attrib()
     dust_mass = attrib()
     gas_mass = attrib()
 
@@ -73,7 +82,7 @@ class Planetoid():
 
     @property
     def inner_effect_limit(self):
-        temp = (self.a * (1.0 - self.e) *
+        temp = (self.orbit.a * (1.0 - self.orbit.e) *
                 (1.0 - self.mass) / (1.0 + DISK_ECCENTRICITY))
         if temp < 0:
             return 0
@@ -82,8 +91,8 @@ class Planetoid():
     @property
     def outer_effect_limit(self):
         return (
-            self.a *
-            (1.0 + self.e) *
+            self.orbit.a *
+            (1.0 + self.orbit.e) *
             (1.0 + self.mass) /
             (1.0 - DISK_ECCENTRICITY)
         )
@@ -95,9 +104,10 @@ class Planetesimal(Planetoid):
 
     @property
     def critical_mass(self):
-        perihelion_dist = self.a * (1.0 - self.e)
+        perihelion_dist = self.orbit.a * (1.0 - self.orbit.e)
         temp = perihelion_dist * sqrt(self.disk.star.luminosity_ratio)
         return B * (temp ** -0.75)
+
 
 def mass_repr(mass):
     if mass * SUN_MASS_IN_MOON_MASSES <= 50:
@@ -105,6 +115,7 @@ def mass_repr(mass):
     if mass * SUN_MASS_IN_EARTH_MASSES <= 50:
         return str(mass * SUN_MASS_IN_EARTH_MASSES) + " M_earth"
     return str(mass * SUN_MASS_IN_JUPITER_MASSES) + " M_jupiter"
+
 
 @attrs(repr=False)
 class Protoplanet(Planetoid):
@@ -120,14 +131,14 @@ class Protoplanet(Planetoid):
 
     @property
     def critical_mass(self):
-        perihelion_dist = self.a * (1.0 - self.e)
+        perihelion_dist = self.orbit.a * (1.0 - self.orbit.e)
         temp = perihelion_dist * sqrt(self.star.luminosity_ratio)
         return B * (temp ** -0.75)
 
     def __repr__(self):
 
         return (
-            "\tMass: " + mass_repr(self.mass) + " = attrib() Orbit: " + str(self.a) +
+            "\tMass: " + mass_repr(self.mass) + " = attrib() Orbit: " + str(self.orbit.a) +
             " AU, Moons: " + str(len(self.moons)) + "\n"
         )
 
@@ -143,8 +154,7 @@ class Protomoon(Planetoid):
 @attrs(repr=False)
 class Planet():
     # Orbital details.
-    a = attrib()  # semi-major axis of solar orbit (in AU)
-    e = attrib()  # eccentricity of solar orbit
+    orbit = attrib()
 
     axial_tilt = attrib()   # units of degrees
     mass = attrib()    # mass (in solar masses)
@@ -200,7 +210,7 @@ class Planet():
         return tabulate([
             ['Type', self.type],
             ['Mass', mass_repr(self.mass)],
-            ['Orbit', 'a = ' + str(self.a) + ' e = ' + str(self.e)],
+            ['Orbit', self.orbit],
             ['Surface gravity', str(self.surf_grav) + ' g'],
             ['Surface pressure', str(self.surf_pressure / MILLIBARS_PER_ATM) + ' atm'],
             ['Atmosphere', atmosphere_string],

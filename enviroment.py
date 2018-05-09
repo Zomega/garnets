@@ -218,7 +218,7 @@ def day_length(planet):
     # slowed by the presence of the star.
 
     change_in_angular_velocity = CHANGE_IN_EARTH_ANG_VEL * (planet.density / EARTH_DENSITY) * (equatorial_radius_in_cm / EARTH_RADIUS) * (
-        EARTH_MASS_IN_GRAMS / planetary_mass_in_grams) * (planet.sun.mass_ratio ** 2.0) * (1.0 / (planet.a ** 6.0))
+        EARTH_MASS_IN_GRAMS / planetary_mass_in_grams) * (planet.sun.mass_ratio ** 2.0) * (1.0 / (planet.orbit.a ** 6.0))
     ang_velocity = base_angular_velocity + \
         (change_in_angular_velocity * planet.sun.age)
 
@@ -232,8 +232,8 @@ def day_length(planet):
         day_in_hours = RADIANS_PER_ROTATION / (SECONDS_PER_HOUR * ang_velocity)
 
     if (day_in_hours >= year_in_hours) or stopped:
-        if planet.e > 0.1:
-            spin_resonance_factor = (1.0 - planet.e) / (1.0 + planet.e)
+        if planet.orbit.e > 0.1:
+            spin_resonance_factor = (1.0 - planet.orbit.e) / (1.0 + planet.orbit.e)
             planet.resonant_period = True
             return(spin_resonance_factor * year_in_hours)
 
@@ -620,7 +620,7 @@ def calculate_surface_temp(planet, first, last_water, last_clouds, last_ice, las
         planet.albedo = EARTH_ALBEDO
 
         effective_temp = eff_temp(
-            planet.sun.r_ecosphere, planet.a, planet.albedo)
+            planet.sun.r_ecosphere, planet.orbit.a, planet.albedo)
         greenhouse_temp = green_rise(opacity(planet.molec_weight,
                                              planet.surf_pressure),
                                      effective_temp,
@@ -682,7 +682,7 @@ def calculate_surface_temp(planet, first, last_water, last_clouds, last_ice, las
                                   planet.ice_cover,
                                   planet.surf_pressure)
 
-    effective_temp = eff_temp(planet.sun.r_ecosphere, planet.a, planet.albedo)
+    effective_temp = eff_temp(planet.sun.r_ecosphere, planet.orbit.a, planet.albedo)
     greenhouse_temp = green_rise(opacity(planet.molec_weight,
                                          planet.surf_pressure),
                                  effective_temp,
@@ -701,7 +701,7 @@ def calculate_surface_temp(planet, first, last_water, last_clouds, last_ice, las
 
     if VERBOSE:
         print("calculate_surface_temp readout\n" + tabulate([
-            ["AU", planet.a],
+            ["AU", planet.orbit.a],
             ["Surface Temp C", planet.surf_temp - FREEZING_POINT_OF_WATER],
             ["Effective Temp C", effective_temp - FREEZING_POINT_OF_WATER],
             ["Greenhouse Temp", greenhouse_temp],
@@ -715,13 +715,13 @@ def calculate_surface_temp(planet, first, last_water, last_clouds, last_ice, las
 
 
 def iterate_surface_temp(planet):
-    initial_temp = est_temp(planet.sun.r_ecosphere, planet.a, planet.albedo)
+    initial_temp = est_temp(planet.sun.r_ecosphere, planet.orbit.a, planet.albedo)
 
     if VERBOSE:
         print(tabulate([
             ["Initial temp", initial_temp],
             ["Solar Ecosphere", planet.sun.r_ecosphere],
-            ["AU", planet.a],
+            ["AU", planet.orbit.a],
             ["Albedo", planet.albedo],
         ]))
 
@@ -823,7 +823,7 @@ def soft(v, max, min):
 def set_temp_range(planet):
     pressmod = 1 / sqrt(1 + 20 * planet.surf_pressure/1000.0)
     ppmod = 1 / sqrt(10 + 5 * planet.surf_pressure/1000.0)
-    tiltmod = fabs(cos(planet.axial_tilt * pi/180) * pow(1 + planet.e, 2))
+    tiltmod = fabs(cos(planet.axial_tilt * pi/180) * pow(1 + planet.orbit.e, 2))
     daymod = 1 / (200/planet.day + 1)
     mh = pow(1 + daymod, pressmod)
     ml = pow(1 - daymod, pressmod)

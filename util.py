@@ -2,6 +2,7 @@
 # Pretty much all of these should be removed.
 import random
 
+
 def pow1_4(x):
     return x ** (1. / 4.)
 

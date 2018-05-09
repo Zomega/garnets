@@ -55,7 +55,7 @@ class CircumstellarDisk:
                 dust_density = 0.0
                 gas_density = 0.0
             else:
-                dust_density = self.dust_density(planetoid.a)
+                dust_density = self.dust_density(planetoid.orbit.a)
                 if planetoid.mass < planetoid.critical_mass or (not lane.gas_present):
                     gas_density = 0.0
                 else:
@@ -77,8 +77,8 @@ class CircumstellarDisk:
                 if (temp2 < 0.0):
                     temp2 = 0.0
 
-                temp = 4.0 * pi * (planetoid.a ** 2.0) * planetoid.reduced_mass * \
-                    (1.0 - planetoid.e * (temp1 - temp2) / bandwidth)
+                temp = 4.0 * pi * (planetoid.orbit.a ** 2.0) * planetoid.reduced_mass * \
+                    (1.0 - planetoid.orbit.e * (temp1 - temp2) / bandwidth)
                 volume = temp * width
 
                 new_dust_mass += volume * dust_density

@@ -6,6 +6,7 @@ from stellar_system import Planetesimal
 from stellar_system import Protoplanet
 from stellar_system import Protomoon
 from stellar_system import Planet
+from stellar_system import Orbit
 from accrete import CircumstellarDisk
 from constants import ECCENTRICITY_COEFF, PROTOPLANET_MASS
 from constants import SUN_MASS_IN_EARTH_MASSES
@@ -55,8 +56,10 @@ def random_planetesimal(disk):
         e = .99
     return Planetesimal(
         disk=disk,
-        a=a,
-        e=e,
+        orbit=Orbit(
+            a=a,
+            e=e,
+        ),
         dust_mass=PROTOPLANET_MASS,
         gas_mass=0,
     )
@@ -78,7 +81,7 @@ def dist_planetary_masses(star, inner_dust, outer_dust, do_moons=True):
         if disk.dust_available(iel, oel) > 0:
             sequential_failures = 0
             logging.info("Injecting planetesimal at " +
-                         str(canidate.a) + " AU ...")
+                         str(canidate.orbit.a) + " AU ...")
 
             disk.accrete_dust(canidate)
 
@@ -95,8 +98,7 @@ def dist_planetary_masses(star, inner_dust, outer_dust, do_moons=True):
 def convert_planetesimal_to_protoplanet(planetesimal):
     return Protoplanet(
         star=planetesimal.disk.star,
-        a=planetesimal.a,
-        e=planetesimal.e,
+        orbit=planetesimal.orbit,
         dust_mass=planetesimal.dust_mass,
         gas_mass=planetesimal.gas_mass
     )
@@ -106,8 +108,10 @@ def convert_planetesimal_to_protomoon(planetesimal, planet):
     print("Capturing a protomoon.")
     return Protomoon(
         protoplanet=planet,
-        a=None,
-        e=None,
+        orbit=Orbit(
+            a=None,
+            e=None,
+        ),
         dust_mass=planetesimal.dust_mass,
         gas_mass=planetesimal.gas_mass,
     )
@@ -120,32 +124,30 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
     for planet in planets:
         print("Out of order", planet, canidate)
 
-        diff = planet.a - canidate.a
+        diff = planet.orbit.a - canidate.orbit.a
 
         if diff > 0.0:
-            dist1 = (canidate.a * (1.0 + canidate.e) *
-                     (1.0 + canidate.reduced_mass)) - canidate.a
+            dist1 = (canidate.orbit.a * (1.0 + canidate.orbit.e) * (1.0 + canidate.reduced_mass)) - canidate.orbit.a
             # x aphelion
-            dist2 = planet.a - (planet.a * (1.0 - planet.e)
-                                * (1.0 - planet.reduced_mass))
+            dist2 = planet.orbit.a - (planet.orbit.a * (1.0 - planet.orbit.e) * (1.0 - planet.reduced_mass))
         else:
             dist1 = (
-                canidate.a -
-                (canidate.a * (1.0 - canidate.e) * (1.0 - canidate.reduced_mass)
+                canidate.orbit.a -
+                (canidate.orbit.a * (1.0 - canidate.orbit.e) * (1.0 - canidate.reduced_mass)
                  ))
             # x perihelion
-            dist2 = (planet.a * (1.0 + planet.e) *
-                     (1.0 + planet.reduced_mass)) - planet.a
+            dist2 = (planet.orbit.a * (1.0 + planet.orbit.e) *
+                     (1.0 + planet.reduced_mass)) - planet.orbit.a
 
         if abs(diff) <= abs(dist1) or abs(diff) <= abs(dist2):
             # Figure out the new orbit.
             a = (planet.mass + canidate.mass) / \
-                ((planet.mass / planet.a) + (canidate.mass / canidate.a))
+                ((planet.mass / planet.orbit.a) + (canidate.mass / canidate.orbit.a))
 
-            temp = planet.mass * sqrt(planet.a) * sqrt(1.0 - (planet.e ** 2.0))
-            temp = temp + (canidate.mass * sqrt(canidate.a) *
-                           sqrt(sqrt(1.0 - (canidate.e ** 2.0))))
-            temp = temp / ((planet.mass + canidate.mass) * sqrt(canidate.a))
+            temp = planet.mass * sqrt(planet.orbit.a) * sqrt(1.0 - (planet.orbit.e ** 2.0))
+            temp = temp + (canidate.mass * sqrt(canidate.orbit.a) *
+                           sqrt(sqrt(1.0 - (canidate.orbit.e ** 2.0))))
+            temp = temp / ((planet.mass + canidate.mass) * sqrt(canidate.orbit.a))
             temp = 1.0 - (temp ** 2.0)
             if temp < 0.0 or temp >= 1.0:
                 temp = 0.0
@@ -160,34 +162,33 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
                         # TODO: Remove planet.mass > canidate.mass distinction, just switch the canidate and planet!
                         planet.add_moon(
                             convert_planetesimal_to_protomoon(canidate, planet))
-                        logging.info("Moon captured at " + str(planet.a) + " AU. Planet Mass: " + str(planet.mass * SUN_MASS_IN_EARTH_MASSES) +
+                        logging.info("Moon captured at " + str(planet.orbit.a) + " AU. Planet Mass: " + str(planet.mass * SUN_MASS_IN_EARTH_MASSES) +
                                      " earth masses Moon Mass: " + str(canidate.mass * SUN_MASS_IN_EARTH_MASSES) + " earth masses.")
                         finished = True
                         break
                     else:
                         # TODO: Reasons.
                         logging.info("Did not capture potential moon at " +
-                                     str(planet.a) + " AU. Collision imminent.")
+                                     str(planet.orbit.a) + " AU. Collision imminent.")
 
             logging.info(
                 "Collision between two planetesimals! Computing new orbit and accumulating additional mass.")
             # Accrete MORE DUST! TODO: Refactor to this.
             disk.accrete_dust(planet)
 
-            planet.a = a
-            planet.e = e
+            planet.orbit = Orbit(a=a, e=e)
             planet.dust_mass = planet.dust_mass + canidate.dust_mass  # + new_dust
             planet.gas_mass = planet.gas_mass + canidate.gas_mass  # + new_gas
             finished = True
             logging.info(
                 "Conglomerate is now " +
                 str(planet.mass * SUN_MASS_IN_EARTH_MASSES) +
-                " earth masses at " + str(planet.a) + " AU."
+                " earth masses at " + str(planet.orbit.a) + " AU."
             )
 
     if not finished:
         # TODO: Extra info.
-        logging.info("New Protoplanet at " + str(canidate.a) + "AU.")
+        logging.info("New Protoplanet at " + str(canidate.orbit.a) + "AU.")
         planets.append(convert_planetesimal_to_protoplanet(canidate))
 
 
@@ -298,7 +299,7 @@ def calculate_gases(sun, planet, planet_id):
             '''if (flag_verbose & 0x0010):
 
                 fprintf (stderr, "\n%s (%5.1Lf AU) gases:\n",
-                        planet_id, planet.a)
+                        planet_id, planet.orbit.a)
 
                 for (i = 0; i < planet.gases; i++)
 
@@ -313,12 +314,11 @@ def calculate_gases(sun, planet, planet_id):
 def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=True, do_moons=True, is_moon=False):
     planet = Planet(
         sun=sun,
-        a=protoplanet.a,
-        e=protoplanet.e,
-        dust_mass = protoplanet.dust_mass,
-        gas_mass = protoplanet.gas_mass,
-        mass = protoplanet.mass,
-        axial_tilt = inclination(protoplanet.a) if random_tilt else 0,
+        orbit=protoplanet.orbit,
+        dust_mass=protoplanet.dust_mass,
+        gas_mass=protoplanet.gas_mass,
+        mass=protoplanet.mass,
+        axial_tilt=inclination(protoplanet.orbit.a) if random_tilt else 0,
         atmosphere=None,
         surf_temp=0,
         high_temp=0,
@@ -327,12 +327,12 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
         min_temp=0,
         greenhs_rise=0,
         resonant_period=False,
-        orbit_zone=orb_zone(sun.luminosity_ratio,  protoplanet.a),
-        orb_period=period( protoplanet.a,  protoplanet.mass, sun.mass_ratio)
+        orbit_zone=orb_zone(sun.luminosity_ratio,  protoplanet.orbit.a),
+        orb_period=period(protoplanet.orbit.a,  protoplanet.mass, sun.mass_ratio)
     )
 
     planet.exospheric_temp = EARTH_EXOSPHERE_TEMP / \
-        ((planet.a / sun.r_ecosphere) ** 2)
+        ((planet.orbit.a / sun.r_ecosphere) ** 2)
     planet.rms_velocity = rms_vel(MOL_NITROGEN, planet.exospheric_temp)
     planet.core_radius = kothari_radius(
         planet.dust_mass, False, planet.orbit_zone)
@@ -342,7 +342,7 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
     # some flavor of gas giant.
 
     planet.density = empirical_density(
-        planet.mass, planet.a, sun.r_ecosphere, True)
+        planet.mass, planet.orbit.a, sun.r_ecosphere, True)
     planet.radius = volume_radius(planet.mass, planet.density)
 
     planet.surf_accel = acceleration(planet.mass, planet.radius)
@@ -426,9 +426,9 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
         planet.molec_weight = min_molec_weight(planet)
         planet.surf_grav = INCREDIBLY_LARGE_NUMBER
         planet.estimated_temp = est_temp(
-            sun.r_ecosphere, planet.a,  planet.albedo)
+            sun.r_ecosphere, planet.orbit.a,  planet.albedo)
         planet.estimated_terr_temp = est_temp(
-            sun.r_ecosphere, planet.a,  EARTH_ALBEDO)
+            sun.r_ecosphere, planet.orbit.a,  EARTH_ALBEDO)
 
         temp = planet.estimated_terr_temp
 
@@ -452,14 +452,14 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
     else:
 
         planet.estimated_temp = est_temp(
-            sun.r_ecosphere, planet.a,  EARTH_ALBEDO)
+            sun.r_ecosphere, planet.orbit.a,  EARTH_ALBEDO)
         planet.estimated_terr_temp = est_temp(
-            sun.r_ecosphere, planet.a,  EARTH_ALBEDO)
+            sun.r_ecosphere, planet.orbit.a,  EARTH_ALBEDO)
 
         planet.surf_grav = gravity(planet.surf_accel)
         planet.molec_weight = min_molec_weight(planet)
 
-        planet.greenhouse_effect = grnhouse(sun.r_ecosphere, planet.a)
+        planet.greenhouse_effect = grnhouse(sun.r_ecosphere, planet.orbit.a)
         planet.volatile_gas_inventory = vol_inventory(planet.mass,
                                                       planet.esc_velocity,
                                                       planet.rms_velocity,
@@ -542,14 +542,13 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
                              )'''
 
     if do_moons and not is_moon:
-        for protomoon in  protoplanet.moons:
-            if (protomoon.mass * SUN_MASS_IN_EARTH_MASSES > .000001):
+        for protomoon in protoplanet.moons:
+            if protomoon.mass * SUN_MASS_IN_EARTH_MASSES > .000001:
 
                 roche_limit = 0.0
                 hill_sphere = 0.0
 
-                protomoon.a = planet.a
-                protomoon.e = planet.e
+                protomoon.orbit = planet.orbit
 
                 # Note: adjusts density.
                 moon = generate_planet(
@@ -564,10 +563,10 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
                 # TODO(woursler): these should be their own subroutines.
                 roche_limit = 2.44 * planet.radius * \
                     pow((planet.density / moon.density), (1.0 / 3.0))
-                hill_sphere = planet.a * KM_PER_AU * \
+                hill_sphere = planet.orbit.a * KM_PER_AU * \
                     pow((planet.mass / (3.0 * sun.mass_ratio)), (1.0 / 3.0))
 
-                if ((roche_limit * 3.0) < hill_sphere):
+                if (roche_limit * 3.0) < hill_sphere:
                     moon.moon_a = random_number(
                         roche_limit * 1.5, hill_sphere / 2.0) / KM_PER_AU
                     moon.moon_e = random_eccentricity()
@@ -586,7 +585,7 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
                                 "%s Moon orbit: a = %.0Lf km, e = %.0Lg\n",
                                 planet.radius, planet.density, ptr.density,
                                 roche_limit,
-                                planet.a * KM_PER_AU, planet.mass * SOLAR_MASS_IN_KILOGRAMS, sun.mass_ratio * SOLAR_MASS_IN_KILOGRAMS,
+                                planet.orbit.a * KM_PER_AU, planet.mass * SOLAR_MASS_IN_KILOGRAMS, sun.mass_ratio * SOLAR_MASS_IN_KILOGRAMS,
                                 hill_sphere,
                                 moon_id,
                                 ptr.moon_a * KM_PER_AU, ptr.moon_e
