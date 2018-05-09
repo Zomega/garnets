@@ -41,6 +41,7 @@ def generate_stellar_system(star, do_gases=True, do_moons=True):
         star, 0.0, star.stellar_dust_limit, do_moons)
     planets = [generate_planet(p, star) for p in protoplanets]
 
+    print(star)
     for planet in planets:
         print(planet)
 

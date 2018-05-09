@@ -204,5 +204,5 @@ class Planet():
             ['Surface gravity', str(self.surf_grav) + ' g'],
             ['Surface pressure', str(self.surf_pressure / MILLIBARS_PER_ATM) + ' atm'],
             ['Atmosphere', atmosphere_string],
-            ['Moons', len(self.moons)],
+            ['Moons', '\n'.join(repr(moon) for moon in self.moons) if len(self.moons) > 0 else 'No Moons'],
         ])
