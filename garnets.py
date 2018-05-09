@@ -310,6 +310,11 @@ def calculate_gases(sun, planet, planet_id):
                                     planet.surf_pressure)
                             )'''
 
+def roche_limit(planet, moon):
+    return 2.44 * planet.radius * pow((planet.density / moon.density), (1.0 / 3.0))
+
+def hill_sphere(planet, sun):
+    return planet.orbit.a * KM_PER_AU * pow((planet.mass / (3.0 * sun.mass_ratio)), (1.0 / 3.0))
 
 def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=True, do_moons=True, is_moon=False):
     planet = Planet(
@@ -408,7 +413,7 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
     planet.day = day_length(planet)    # Modifies planet.resonant_period
     planet.esc_velocity = escape_vel(planet.mass, planet.radius)
 
-    if ((planet.type == PlanetType.GAS_GIANT) or (planet.type == PlanetType.SUB_GAS_GIANT) or (planet.type == PlanetType.SUB_SUB_GAS_GIANT)):
+    if planet.type == PlanetType.GAS_GIANT or planet.type == PlanetType.SUB_GAS_GIANT or planet.type == PlanetType.SUB_SUB_GAS_GIANT:
 
         planet.greenhouse_effect = False
         planet.volatile_gas_inventory = INCREDIBLY_LARGE_NUMBER
@@ -432,7 +437,7 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
 
         temp = planet.estimated_terr_temp
 
-        if ((temp >= FREEZING_POINT_OF_WATER) and (temp <= EARTH_AVERAGE_KELVIN + 10.) and (sun.age > 2.0E9)):
+        if (temp >= FREEZING_POINT_OF_WATER) and (temp <= EARTH_AVERAGE_KELVIN + 10.) and (sun.age > 2.0E9):
             pass
             '''if (flag_verbose & 0x8000):
 
@@ -527,7 +532,7 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
             elif (planet.surf_temp < FREEZING_POINT_OF_WATER):
                 planet.type = PlanetType.ICE
             else:
-                planet.type = PlanetType.UNKNOWN
+                planet.type = PlanetType.UNKNOWN # TODO(woursler): Consider throwing an error here.
 
                 '''if (flag_verbose & 0x0001)
                     fprintf (stderr, "%12s\tp=%4.2Lf\tm=%4.2Lf\tg=%4.2Lf\tt=%+.1Lf\t%s\t Unknown %s\n",
@@ -544,13 +549,9 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
     if do_moons and not is_moon:
         for protomoon in protoplanet.moons:
             if protomoon.mass * SUN_MASS_IN_EARTH_MASSES > .000001:
-
-                roche_limit = 0.0
-                hill_sphere = 0.0
-
                 protomoon.orbit = planet.orbit
 
-                # Note: adjusts density.
+                # Note: adjusts density, which is used in computing the roche limit.
                 moon = generate_planet(
                     protoplanet=protomoon,
                     sun=sun,
@@ -561,23 +562,22 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
                 )
 
                 # TODO(woursler): these should be their own subroutines.
-                roche_limit = 2.44 * planet.radius * \
-                    pow((planet.density / moon.density), (1.0 / 3.0))
-                hill_sphere = planet.orbit.a * KM_PER_AU * \
-                    pow((planet.mass / (3.0 * sun.mass_ratio)), (1.0 / 3.0))
+                roche_limit_r = roche_limit(planet, moon)
+                hill_sphere_r = hill_sphere(planet, sun)
 
-                if (roche_limit * 3.0) < hill_sphere:
-                    moon.moon_a = random_number(
-                        roche_limit * 1.5, hill_sphere / 2.0) / KM_PER_AU
-                    moon.moon_e = random_eccentricity()
+                if (roche_limit_r * 3.0) < hill_sphere_r:
+                    moon_a = random_number(
+                        roche_limit_r * 1.5, hill_sphere_r / 2.0) / KM_PER_AU
+                    moon_e = random_eccentricity()
+                    moon.orbit = Orbit(a=moon_a, e=moon_e)
 
                 else:
-                    moon.moon_a = 0
-                    moon.moon_e = 0
+                    moon.orbit = Orbit(a=0, e=0)
 
                 planet.moons.append(moon)
 
-                '''if (flag_verbose & 0x40000):
+                '''
+                if (flag_verbose & 0x40000):
 
                     fprintf (stderr,
                                 "   Roche limit: R = %4.2Lg, rM = %4.2Lg, rm = %4.2Lg . %.0Lf km\n"
@@ -605,5 +605,5 @@ def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=Tr
 ###
 # Smoke Test
 ###
-
-generate_stellar_system(random_star())
+if __name__=='__main__':
+    generate_stellar_system(random_star())

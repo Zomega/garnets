@@ -10,6 +10,8 @@ class Gas():
     html_symbol = attrib()  # string
     name = attrib()  # Name
     weight = attrib()  # long double
+
+    # TODO(woursler): Should use a phase diagram -- these melting and boiling points are really simplistic given the range of pressures things happen at.
     melt = attrib()  # long double
     boil = attrib()  # long double
     density = attrib()  # long double

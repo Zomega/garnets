@@ -67,7 +67,7 @@ class Zone(Enum):  # TODO(woursler): Figure it out. Might be related to habitabl
 
 
 def orb_zone(luminosity, orb_radius):
-    '''the orbital 'zone' of the particle.'''
+    '''The orbital 'zone' of the particle.'''
     if orb_radius < (4.0 * sqrt(luminosity)):
         return Zone.ZONE_1
     elif orb_radius < (15.0 * sqrt(luminosity)):
@@ -95,13 +95,14 @@ JIMS_FUDGE = 1.004
 
 
 def kothari_radius(mass, giant, zone):
-    '''Returns the radius of the planet in kilometers. '''
-    '''The mass passed in is in units of solar masses. '''
-    '''This formula is listed as eq.9 in Fogg's article, some typos'''
-    '''crop up in that eq.  See "The Internal Constitution of Planets", by'''
-    '''Dr. D. S. Kothari, Mon. Not. of the Royal Astronomical Society, 96'''
-    '''pp.833-843, for the derivation.  Specifically, is Kothari's'''
-    '''eq.23, appears on page 840. '''
+    '''Returns the radius of the planet in kilometers.
+
+    The mass passed in is in units of solar masses.
+    This formula is listed as eq.9 in Fogg's article, some typos
+    crop up in that eq.  See "The Internal Constitution of Planets", by
+    Dr. D. S. Kothari, Mon. Not. of the Royal Astronomical Society, 96
+    pp.833-843, for the derivation.  Specifically, is Kothari's
+    eq.23, appears on page 840.'''
 
     if zone == Zone.ZONE_1:
         if giant:
@@ -145,14 +146,13 @@ def kothari_radius(mass, giant, zone):
     temp = (temp * (mass ** (1.0 / 3.0))) / CM_PER_KM
 
     temp = temp / JIMS_FUDGE
-    '''Earth = actual earth'''
 
     return(temp)
 
 
 def empirical_density(mass, orb_radius, r_ecosphere, gas_giant):
-    '''The mass passed in is in units of solar masses, the orbital radius'''
-    '''is in units of AU.  The density is returned in units of grams/cc. '''
+    '''The mass passed in is in units of solar masses, the orbital radius
+    is in units of AU.  The density is returned in units of grams/cc.'''
 
     temp = (mass * SUN_MASS_IN_EARTH_MASSES) ** (1.0 / 8.0)
     temp = temp * (r_ecosphere / orb_radius) ** (1.0 / 4.0)
@@ -163,8 +163,8 @@ def empirical_density(mass, orb_radius, r_ecosphere, gas_giant):
 
 
 def volume_density(mass, equat_radius):
-    '''The mass passed in is in units of solar masses, the equatorial '''
-    '''radius is in km.  The density is returned in units of grams/cc. '''
+    '''The mass passed in is in units of solar masses, the equatorial
+    radius is in km.  The density is returned in units of grams/cc.'''
 
     mass = mass * SOLAR_MASS_IN_GRAMS
     equat_radius = equat_radius * CM_PER_KM
@@ -173,28 +173,29 @@ def volume_density(mass, equat_radius):
 
 
 def period(separation, small_mass, large_mass):
-    '''The separation is in units of AU, both masses are in units of solar'''
-    '''masses.   The period returned is in terms of Earth days. '''
+    '''The separation is in units of AU, both masses are in units of solar
+    masses.   The period returned is in terms of Earth days.'''
 
     period_in_years = sqrt((separation ** 3) / (small_mass + large_mass))
     return(period_in_years * DAYS_IN_A_YEAR)
 
 
 def day_length(planet):
-    '''Fogg's information for self routine came from Dole "Habitable Planets'''
-    '''for Man", Publishing Company, NY, 1964.  From self, came'''
-    '''up with his eq.12, is the equation for the 'base_angular_velocity' '''
-    '''below.  He then used an equation for the change in angular velocity per'''
-    '''time (dw/dt) from P. Goldreich and S. Soter's paper "Q in the Solar '''
-    '''System" in Icarus, 5, pp.375-389 (1966).   Using as a comparison the'''
-    '''change in angular velocity for the Earth, has come up with an '''
-    '''approximation for our planet (his eq.13) and take that into account.'''
-    '''This is used to find 'change_in_angular_velocity' below. '''
+    '''Fogg's information for this routine came from Dole "Habitable Planets
+    for Man", Publishing Company, NY, 1964.  From this, he came
+    up with his eq.12, is the equation for the 'base_angular_velocity'
+    below.  He then used an equation for the change in angular velocity per
+    time (dw/dt) from P. Goldreich and S. Soter's paper "Q in the Solar
+    System" in Icarus, 5, pp.375-389 (1966).   Using as a comparison the
+    change in angular velocity for the Earth, has come up with an
+    approximation for our planet (his eq.13) and take that into account.
+    This is used to find 'change_in_angular_velocity' below.
 
-    '''Input parameters are mass (in solar masses), radius (in Km), orbital'''
-    '''period (in days), radius (in AU), density (in g/cc), '''
-    '''eccentricity, whether it is a gas giant or not. '''
-    '''The length of the day is returned in units of hours. '''
+    Input parameters are mass (in solar masses), radius (in Km), orbital
+    period (in days), radius (in AU), density (in g/cc),
+    eccentricity, whether it is a gas giant or not.
+    The length of the day is returned in units of hours.'''
+
     planetary_mass_in_grams = planet.mass * SOLAR_MASS_IN_GRAMS
     equatorial_radius_in_cm = planet.radius * CM_PER_KM
     year_in_hours = planet.orb_period * 24.0
@@ -244,35 +245,35 @@ def day_length(planet):
 
 
 def inclination(orb_radius):
-    '''The orbital radius is expected in units of Astronomical Units (AU).'''
-    '''Inclination is returned in units of degrees. '''
+    '''The orbital radius is expected in units of Astronomical Units (AU).
+    Inclination is returned in units of degrees. '''
     temp = int((orb_radius ** 0.2) * about(EARTH_AXIAL_TILT, 0.4))
     return temp % 360
 
 
 def escape_vel(mass, radius):
-    '''This function implements the escape velocity calculation.  Note that'''
-    '''it appears that Fogg's eq.15 is incorrect. '''
-    '''The mass is in units of solar mass, radius in kilometers, the'''
-    '''velocity returned is in cm/sec. '''
+    '''This function implements the escape velocity calculation.  Note that
+    it appears that Fogg's eq.15 is incorrect.
+    The mass is in units of solar mass, radius in kilometers, the
+    velocity returned is in cm/sec. '''
     mass_in_grams = mass * SOLAR_MASS_IN_GRAMS
     radius_in_cm = radius * CM_PER_KM
     return sqrt(2.0 * GRAV_CONSTANT * mass_in_grams / radius_in_cm)
 
 
 def rms_vel(molecular_weight, exospheric_temp):
-    '''This is Fogg's eq.16.  The molecular weight (usually assumed to be N2)'''
-    '''is used as the basis of the Root Mean Square (RMS) velocity of the '''
-    '''molecule or atom.  The velocity returned is in cm/sec. '''
-    '''Orbital radius is in A.U.(ie: in units of the earth's orbital radius).'''
+    '''This is Fogg's eq.16.  The molecular weight (usually assumed to be N2)
+    is used as the basis of the Root Mean Square (RMS) velocity of the
+    molecule or atom.  The velocity returned is in cm/sec.
+    Orbital radius is in A.U.(ie: in units of the earth's orbital radius).'''
     return sqrt((3.0 * MOLAR_GAS_CONST * exospheric_temp) / molecular_weight) * CM_PER_METER
 
 
 def molecule_limit(mass, equat_radius, exospheric_temp):
-    '''This function returns the smallest molecular weight retained by the'''
-    '''body, is useful for determining the atmosphere composition. '''
-    '''Mass is in units of solar masses, equatorial radius is in units of'''
-    '''kilometers. '''
+    '''This function returns the smallest molecular weight retained by the
+    body, is useful for determining the atmosphere composition.
+    Mass is in units of solar masses, equatorial radius is in units of
+    kilometers. '''
     esc_velocity = escape_vel(mass, equat_radius)
 
     return ((3.0 * MOLAR_GAS_CONST * exospheric_temp) /
@@ -280,17 +281,17 @@ def molecule_limit(mass, equat_radius, exospheric_temp):
 
 
 def acceleration(mass, radius):
-    '''This function calculates the surface acceleration of a planet.   The'''
-    '''mass is in units of solar masses, radius in terms of km, the'''
-    '''acceleration is returned in units of cm/sec2. '''
+    '''This function calculates the surface acceleration of a planet.   The
+    mass is in units of solar masses, radius in terms of km, the
+    acceleration is returned in units of cm/sec2. '''
 
     return GRAV_CONSTANT * (mass * SOLAR_MASS_IN_GRAMS) / pow2(radius * CM_PER_KM)
 
 
 def gravity(acceleration):
-    '''This function calculates the surface gravity of a planet.  The '''
-    '''acceleration is in units of cm/sec2, the gravity is returned in '''
-    '''units of Earth gravities. '''
+    '''This function calculates the surface gravity of a planet.  The
+    acceleration is in units of cm/sec2, the gravity is returned in
+    units of Earth gravities. '''
 
     return acceleration / EARTH_ACCELERATION
 
@@ -324,32 +325,32 @@ def vol_inventory(mass, escape_vel, rms_vel, stellar_mass, zone, greenhouse_effe
 
 
 def pressure(volatile_gas_inventory, equat_radius, gravity):
-    '''This implements Fogg's eq.18.  The pressure returned is in units of '''
-    '''millibars (mb).   The gravity is in units of Earth gravities, radius'''
-    '''in units of kilometers. '''
+    '''This implements Fogg's eq.18.  The pressure returned is in units of
+    millibars (mb).   The gravity is in units of Earth gravities, radius
+    in units of kilometers.
 
-    '''JLB: Aparently self assumed that pressure = 1000mb. I've added a'''
-    '''fudge factor (EARTH_SURF_PRES_IN_MILLIBARS / 1000.) to correct for that'''
+    JLB: Aparently this assumed that pressure = 1000mb. I've added a
+    fudge factor (EARTH_SURF_PRES_IN_MILLIBARS / 1000.) to correct for that'''
 
     equat_radius = KM_EARTH_RADIUS / equat_radius
     return volatile_gas_inventory * gravity * (EARTH_SURF_PRES_IN_MILLIBARS / 1000.) / (equat_radius ** 2)
 
 
 def boiling_point(surf_pressure):
-    '''This function returns the boiling point of water in an atmosphere of'''
-    '''pressure 'surf_pressure', in millibars.  The boiling point is'''
-    '''returned in units of Kelvin.  This is Fogg's eq.21. '''
+    '''This function returns the boiling point of water in an atmosphere of
+    pressure 'surf_pressure', in millibars.  The boiling point is
+    returned in units of Kelvin.  This is Fogg's eq.21. '''
 
     surface_pressure_in_bars = surf_pressure / MILLIBARS_PER_BAR
     return 1.0 / ((log(surface_pressure_in_bars) / -5050.5) + (1.0 / 373.0))
 
 
 def hydro_fraction(volatile_gas_inventory, planet_radius):
-    '''This function is Fogg's eq.22.   Given the volatile gas inventory and'''
-    '''planetary radius of a planet (in Km), function returns the '''
-    '''fraction of the planet covered with water. '''
-    '''I have changed the function very slightly:   the fraction of Earth's'''
-    '''surface covered by water is 71%, not 75% as Fogg used. '''
+    '''This function is Fogg's eq.22.   Given the volatile gas inventory and
+    planetary radius of a planet (in Km), function returns the
+    fraction of the planet covered with water.
+    I have changed the function very slightly:   the fraction of Earth's
+    surface covered by water is 71%, not 75% as Fogg used. '''
 
     temp = (0.71 * volatile_gas_inventory / 1000.0) * \
         ((KM_EARTH_RADIUS / planet_radius) ** 2)
@@ -364,14 +365,14 @@ Q2_36 = 0.0698  # 1/Kelvin
 
 
 def cloud_fraction(surf_temp, smallest_MW_retained, equat_radius, hydro_fraction):
-    '''Given the surface temperature of a planet (in Kelvin), function'''
-    '''returns the fraction of cloud cover available.   This is Fogg's eq.23.'''
-    '''See Hart in "Icarus" (vol 33, pp23 - 39, 1978) for an explanation. '''
-    '''This equation is Hart's eq.3. '''
-    '''I have modified it slightly using constants and relationships from '''
-    '''Glass's book "Introduction to Planetary Geology", p.46. '''
-    '''The 'CLOUD_COVERAGE_FACTOR' is the amount of surface area on Earth '''
-    '''covered by one Kg. of cloud. '''
+    '''Given the surface temperature of a planet (in Kelvin), function
+    returns the fraction of cloud cover available.   This is Fogg's eq.23.
+    See Hart in "Icarus" (vol 33, pp23 - 39, 1978) for an explanation.
+    This equation is Hart's eq.3.
+    I have modified it slightly using constants and relationships from
+    Glass's book "Introduction to Planetary Geology", p.46.
+    The 'CLOUD_COVERAGE_FACTOR' is the amount of surface area on Earth
+    covered by one Kg. of cloud.'''
     if smallest_MW_retained > WATER_VAPOR:
         return 0.0
     else:
@@ -387,12 +388,12 @@ def cloud_fraction(surf_temp, smallest_MW_retained, equat_radius, hydro_fraction
 
 
 def ice_fraction(hydro_fraction, surf_temp):
-    '''Given the surface temperature of a planet (in Kelvin), function'''
-    '''returns the fraction of the planet's surface covered by ice.  This is'''
-    '''Fogg's eq.24.  See Hart[24] in Icarus vol.33, p.28 for an explanation.'''
-    '''I have changed a constant from 70 to 90 in order to bring it more in'''
-    '''line with the fraction of the Earth's surface covered with ice, which'''
-    '''is approximatly .016 (=1.6%). '''
+    '''Given the surface temperature of a planet (in Kelvin), function
+    returns the fraction of the planet's surface covered by ice.  This is
+    Fogg's eq.24.  See Hart[24] in Icarus vol.33, p.28 for an explanation.
+    I have changed a constant from 70 to 90 in order to bring it more in
+    line with the fraction of the Earth's surface covered with ice, which
+    is approximatly .016 (=1.6%). '''
 
     if (surf_temp > 328.0):
         surf_temp = 328.0
@@ -406,8 +407,8 @@ def ice_fraction(hydro_fraction, surf_temp):
 
 
 def eff_temp(ecosphere_radius, orb_radius, albedo):
-    '''This is Fogg's eq.19.  The ecosphere radius is given in AU, orbital'''
-    '''radius in AU, the temperature returned is in Kelvin. '''
+    '''This is Fogg's eq.19.  The ecosphere radius is given in AU, orbital
+    radius in AU, the temperature returned is in Kelvin.'''
     return sqrt(ecosphere_radius / orb_radius) * pow1_4((1.0 - albedo) / (1.0 - EARTH_ALBEDO)) * EARTH_EFFECTIVE_TEMP
 
 
@@ -416,18 +417,18 @@ def est_temp(ecosphere_radius, orb_radius, albedo):
 
 
 def grnhouse(r_ecosphere, orb_radius):
-    '''Old grnhouse:           '''
-    '''Note that if the orbital radius of the planet is greater than or equal'''
-    '''to R_inner, 99% of it's volatiles are assumed to have been deposited in'''
-    '''surface reservoirs (otherwise, suffers from the greenhouse effect).'''
+    '''Old grnhouse:
+    Note that if the orbital radius of the planet is greater than or equal
+    to R_inner, 99% of it's volatiles are assumed to have been deposited in
+    surface reservoirs (otherwise, suffers from the greenhouse effect).
 
-    '''if ((orb_radius < r_greenhouse) and (zone == 1))'''
+    if ((orb_radius < r_greenhouse) and (zone == 1))
 
-    '''The definition is based on the inital surface temperature and what'''
-    '''state water is in. If it's too hot, water will never condense out'''
-    '''of the atmosphere, down and form an ocean. The albedo used here'''
-    '''was chosen so that the boundary is about the same as the old method '''
-    '''Neither zone, r_greenhouse are used in self version        JLB'''
+    The definition is based on the inital surface temperature and what
+    state water is in. If it's too hot, water will never condense out
+    of the atmosphere, down and form an ocean. The albedo used here
+    was chosen so that the boundary is about the same as the old method
+    Neither zone, r_greenhouse are used in this version        JLB'''
 
     temp = eff_temp(r_ecosphere, orb_radius, GREENHOUSE_TRIGGER_ALBEDO)
 
@@ -435,11 +436,11 @@ def grnhouse(r_ecosphere, orb_radius):
 
 
 def green_rise(optical_depth, effective_temp, surf_pressure):
-    '''This is Fogg's eq.20, is also Hart's eq.20 in his "Evolution of '''
-    '''Earth's Atmosphere" article.  The effective temperature given is in '''
-    '''units of Kelvin, is the rise in temperature produced by the '''
-    '''greenhouse effect, is returned. '''
-    '''I tuned self by changing a pow(x,.25) to pow(x,.4) to match Venus - JLB'''
+    '''This is Fogg's eq.20, is also Hart's eq.20 in his "Evolution of
+    Earth's Atmosphere" article.  The effective temperature given is in
+    units of Kelvin, is the rise in temperature produced by the
+    greenhouse effect, is returned.
+    I tuned this by changing a pow(x,.25) to pow(x,.4) to match Venus - JLB'''
     convection_factor = EARTH_CONVECTION_FACTOR * \
         pow(surf_pressure / EARTH_SURF_PRES_IN_MILLIBARS, 0.4)
     rise = (pow1_4(1.0 + 0.75 * optical_depth) - 1.0) * \
@@ -452,9 +453,9 @@ def green_rise(optical_depth, effective_temp, surf_pressure):
 
 
 def planet_albedo(water_fraction, cloud_fraction, ice_fraction, surf_pressure):
-    '''The surface temperature passed in is in units of Kelvin. '''
-    '''The cloud adjustment is the fraction of cloud cover obscuring each '''
-    '''of the three major components of albedo that lie below the clouds. '''
+    '''The surface temperature passed in is in units of Kelvin.
+    The cloud adjustment is the fraction of cloud cover obscuring each
+    of the three major components of albedo that lie below the clouds.'''
 
     rock_fraction = 1.0 - water_fraction - ice_fraction
     components = 0.0
@@ -498,9 +499,9 @@ def planet_albedo(water_fraction, cloud_fraction, ice_fraction, surf_pressure):
 
 
 def opacity(molecular_weight, surf_pressure):
-    '''This function returns the dimensionless quantity of optical depth, '''
-    '''which is useful in determining the amount of greenhouse effect on a'''
-    '''planet. '''
+    '''This function returns the dimensionless quantity of optical depth,
+    which is useful in determining the amount of greenhouse effect on a
+    planet.'''
 
     optical_depth = 0.0
     if (molecular_weight >= 0.0) and (molecular_weight < 10.0):
@@ -605,14 +606,6 @@ def min_molec_weight(planet):
 
 def calculate_surface_temp(planet, first, last_water, last_clouds, last_ice, last_temp, last_albedo):
     '''The temperature calculated is in degrees Kelvin. '''
-    '''Quantities already known which are used in these calculations: '''
-    '''planet.molec_weight '''
-    '''planet.surf_pressure '''
-    '''R_ecosphere '''
-    '''planet.a '''
-    '''planet.volatile_gas_inventory '''
-    '''planet.radius '''
-    '''planet.boil_point '''
 
     boil_off = False
 
@@ -768,9 +761,11 @@ def iterate_surface_temp(planet):
 '''
 
 
+# TODO(woursler): Move this into an atomosphere class.
+
 def inspired_partial_pressure(surf_pressure, gas_pressure):
-    '''Inspired partial pressure, takes into account humidification of the'''
-    '''air in the nasal passage and throat This formula is on Dole's p. 14'''
+    '''Inspired partial pressure, takes into account humidification of the
+    air in the nasal passage and throat This formula is on Dole's p. 14'''
     pH2O = H20_ASSUMED_PRESSURE
     fraction = gas_pressure / surf_pressure
 
@@ -778,10 +773,10 @@ def inspired_partial_pressure(surf_pressure, gas_pressure):
 
 
 def breathability(planet):
-    '''This function uses figures on the maximum inspired partial pressures'''
-    '''of Oxygen, atmospheric and traces gases as laid out on pages 15,'''
-    '''16 and 18 of Dole's Habitable Planets for Man to derive breathability'''
-    '''of the planet's atmosphere.                                       JLB'''
+    '''This function uses figures on the maximum inspired partial pressures
+    of Oxygen, atmospheric and traces gases as laid out on pages 15,
+    16 and 18 of Dole's Habitable Planets for Man to derive breathability
+    of the planet's atmosphere.                                       JLB'''
     oxygen_ok = False
 
     if planet.gases == 0:
