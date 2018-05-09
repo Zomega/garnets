@@ -271,7 +271,7 @@ def calculate_gases(sun, planet, planet_id):
         if n > 0:
 
             planet.gases = n
-            planet.atmosphere = [0 for _ in range(len(gases))]  # DO NOT COMMIT
+            planet.atmosphere = [0 for _ in range(len(gases))]
 
             for i in range(len(gases)):
 
@@ -310,30 +310,27 @@ def calculate_gases(sun, planet, planet_id):
                             )'''
 
 
-def generate_planet(protoplanent, sun, random_tilt=0, planet_id=None, do_gases=True, do_moons=True, is_moon=False):
-    # TODO(woursler): Implement
-    logging.warning("generate_planet( ... ) not implemented yet.")
-    return
+def generate_planet(protoplanet, sun, random_tilt=0, planet_id=None, do_gases=True, do_moons=True, is_moon=False):
+    planet = Planet(
+        sun=sun,
+        a=protoplanet.a,
+        e=protoplanet.e,
+        dust_mass = protoplanet.dust_mass,
+        gas_mass = protoplanet.gas_mass,
+        mass = protoplanet.mass,
+        axial_tilt = inclination(protoplanet.a) if random_tilt else 0,
+        atmosphere=None,
+        surf_temp=0,
+        high_temp=0,
+        low_temp=0,
+        max_temp=0,
+        min_temp=0,
+        greenhs_rise=0,
+        resonant_period=False,
+        orbit_zone=orb_zone(sun.luminosity_ratio,  protoplanet.a),
+        orb_period=period( protoplanet.a,  protoplanet.mass, sun.mass_ratio)
+    )
 
-    planet = Planet()
-
-    planet.atmosphere = None
-    planet.gases = 0
-    planet.surf_temp = 0
-    planet.high_temp = 0
-    planet.low_temp = 0
-    planet.max_temp = 0
-    planet.min_temp = 0
-    planet.greenhs_rise = 0
-    planet.planet_no = 0  # TODO(woursler): Figure this out.
-    planet.sun = sun
-    planet.resonant_period = False
-
-    planet.orbit_zone = orb_zone(sun.luminosity, planet.a)
-
-    planet.orb_period = period(planet.a, planet.mass, sun.mass)
-    if random_tilt:
-        planet.axial_tilt = inclination(planet.a)
     planet.exospheric_temp = EARTH_EXOSPHERE_TEMP / \
         ((planet.a / sun.r_ecosphere) ** 2)
     planet.rms_velocity = rms_vel(MOL_NITROGEN, planet.exospheric_temp)
@@ -466,7 +463,7 @@ def generate_planet(protoplanent, sun, random_tilt=0, planet_id=None, do_gases=T
         planet.volatile_gas_inventory = vol_inventory(planet.mass,
                                                       planet.esc_velocity,
                                                       planet.rms_velocity,
-                                                      sun.mass,
+                                                      sun.mass_ratio,
                                                       planet.orbit_zone,
                                                       planet.greenhouse_effect,
                                                       (planet.gas_mass
@@ -545,7 +542,7 @@ def generate_planet(protoplanent, sun, random_tilt=0, planet_id=None, do_gases=T
                              )'''
 
     if do_moons and not is_moon:
-        for protomoon in protoplanent.moons:
+        for protomoon in  protoplanet.moons:
             if (protomoon.mass * SUN_MASS_IN_EARTH_MASSES > .000001):
 
                 roche_limit = 0.0
@@ -556,7 +553,7 @@ def generate_planet(protoplanent, sun, random_tilt=0, planet_id=None, do_gases=T
 
                 # Note: adjusts density.
                 generate_planet(
-                    protoplanent=protomoon,
+                     protoplanet=protomoon,
                     sun=sun,
                     random_tilt=random_tilt,
                     do_gases=do_gases,
@@ -568,7 +565,7 @@ def generate_planet(protoplanent, sun, random_tilt=0, planet_id=None, do_gases=T
                 roche_limit = 2.44 * planet.radius * \
                     pow((planet.density / protomoon.density), (1.0 / 3.0))
                 hill_sphere = planet.a * KM_PER_AU * \
-                    pow((planet.mass / (3.0 * sun.mass)), (1.0 / 3.0))
+                    pow((planet.mass / (3.0 * sun.mass_ratio)), (1.0 / 3.0))
 
                 if ((roche_limit * 3.0) < hill_sphere):
                     protomoon.moon_a = random_number(
@@ -588,7 +585,7 @@ def generate_planet(protoplanent, sun, random_tilt=0, planet_id=None, do_gases=T
                                 "%s Moon orbit: a = %.0Lf km, e = %.0Lg\n",
                                 planet.radius, planet.density, ptr.density,
                                 roche_limit,
-                                planet.a * KM_PER_AU, planet.mass * SOLAR_MASS_IN_KILOGRAMS, sun.mass * SOLAR_MASS_IN_KILOGRAMS,
+                                planet.a * KM_PER_AU, planet.mass * SOLAR_MASS_IN_KILOGRAMS, sun.mass_ratio * SOLAR_MASS_IN_KILOGRAMS,
                                 hill_sphere,
                                 moon_id,
                                 ptr.moon_a * KM_PER_AU, ptr.moon_e

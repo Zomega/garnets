@@ -66,14 +66,6 @@ class Zone(Enum):  # TODO(woursler): Figure it out. Might be related to habitabl
     ZONE_3 = 3
 
 
-def luminosity(mass_ratio):
-    if mass_ratio < 1.0:
-        n = 1.75 * (mass_ratio - 0.1) + 3.325
-    else:
-        n = 0.5 * (2.0 - mass_ratio) + 4.4
-    return mass_ratio ** n
-
-
 def orb_zone(luminosity, orb_radius):
     '''the orbital 'zone' of the particle.'''
     if orb_radius < (4.0 * sqrt(luminosity)):
@@ -226,7 +218,7 @@ def day_length(planet):
     # slowed by the presence of the star.
 
     change_in_angular_velocity = CHANGE_IN_EARTH_ANG_VEL * (planet.density / EARTH_DENSITY) * (equatorial_radius_in_cm / EARTH_RADIUS) * (
-        EARTH_MASS_IN_GRAMS / planetary_mass_in_grams) * (planet.sun.mass ** 2.0) * (1.0 / (planet.a ** 6.0))
+        EARTH_MASS_IN_GRAMS / planetary_mass_in_grams) * (planet.sun.mass_ratio ** 2.0) * (1.0 / (planet.a ** 6.0))
     ang_velocity = base_angular_velocity + \
         (change_in_angular_velocity * planet.sun.age)
 
@@ -251,7 +243,7 @@ def day_length(planet):
     return(day_in_hours)
 
 
-def inclination(self, orb_radius):
+def inclination(orb_radius):
     '''The orbital radius is expected in units of Astronomical Units (AU).'''
     '''Inclination is returned in units of degrees. '''
     temp = int((orb_radius ** 0.2) * about(EARTH_AXIAL_TILT, 0.4))
@@ -423,7 +415,7 @@ def est_temp(ecosphere_radius, orb_radius, albedo):
     return sqrt(ecosphere_radius / orb_radius) * pow1_4((1.0 - albedo) / (1.0 - EARTH_ALBEDO)) * EARTH_AVERAGE_KELVIN
 
 
-def grnhouse(self, r_ecosphere, orb_radius):
+def grnhouse(r_ecosphere, orb_radius):
     '''Old grnhouse:           '''
     '''Note that if the orbital radius of the planet is greater than or equal'''
     '''to R_inner, 99% of it's volatiles are assumed to have been deposited in'''
@@ -648,7 +640,7 @@ def calculate_surface_temp(planet, first, last_water, last_clouds, last_ice, las
         planet.volatile_gas_inventory = vol_inventory(planet.mass,
                                                       planet.esc_velocity,
                                                       planet.rms_velocity,
-                                                      planet.sun.mass,
+                                                      planet.sun.mass_ratio,
                                                       planet.orbit_zone,
                                                       planet.greenhouse_effect,
                                                       (planet.gas_mass
@@ -706,7 +698,7 @@ def calculate_surface_temp(planet, first, last_water, last_clouds, last_ice, las
     set_temp_range(planet)
 
     if VERBOSE:
-        print(tabulate([
+        print("calculate_surface_temp readout\n" + tabulate([
             ["AU", planet.a],
             ["Surface Temp C", planet.surf_temp - FREEZING_POINT_OF_WATER],
             ["Effective Temp C", effective_temp - FREEZING_POINT_OF_WATER],
@@ -725,9 +717,8 @@ def iterate_surface_temp(planet):
 
     if VERBOSE:
         print(tabulate([
-            ["Planet No", planet.planet_no],
             ["Initial temp", initial_temp],
-            ["Solar Ecosphere", planet.sun.r_ecosphere]
+            ["Solar Ecosphere", planet.sun.r_ecosphere],
             ["AU", planet.a],
             ["Albedo", planet.albedo],
         ]))

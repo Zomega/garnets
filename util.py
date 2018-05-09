@@ -1,6 +1,6 @@
 # These are a bunch of functions and macros from stargen that either are redundant with default python functionality, or are not included somehow.
 # Pretty much all of these should be removed.
-
+import random
 
 def pow1_4(x):
     return x ** (1. / 4.)
@@ -15,11 +15,11 @@ def pow3(x):
 
 
 def about(x, dx):
-    raise NotImplementedError("about not implemented.")
+    return random.uniform(x-dx, x+dx)
 
 
 def random_number(a, b):
-    raise NotImplementedError("random_number not implemented.")
+    return random.uniform(a, b)
 
 
 def random_eccentricity(a, b):
