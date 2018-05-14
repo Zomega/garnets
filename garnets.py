@@ -536,7 +536,7 @@ def generate_planet(protoplanet, star, random_tilt=0, planet_id=None, do_gases=T
             elif (planet.surf_temp < FREEZING_POINT_OF_WATER):
                 planet.type = PlanetType.ICE
             else:
-                planet.type = PlanetType.UNKNOWN # TODO(woursler): Consider throwing an error here.
+                planet.type = PlanetType.UNKNOWN  # TODO(woursler): Consider throwing an error here.
 
                 '''if (flag_verbose & 0x0001)
                     fprintf (stderr, "%12s\tp=%4.2Lf\tm=%4.2Lf\tg=%4.2Lf\tt=%+.1Lf\t%s\t Unknown %s\n",
@@ -609,5 +609,6 @@ def generate_planet(protoplanet, star, random_tilt=0, planet_id=None, do_gases=T
 ###
 # Smoke Test
 ###
-if __name__=='__main__':
+if __name__ == '__main__':
+    random.seed('earth')
     print(generate_stellar_system(random_star()))
