@@ -1,5 +1,10 @@
-from constants import DUST_DENSITY_COEFF, ALPHA, N, K
-from math import sqrt, exp, pi
+from constants import ALPHA
+from constants import DUST_DENSITY_COEFF
+from constants import K
+from constants import N
+from math import exp
+from math import pi
+from math import sqrt
 
 
 class CircumstellarDustLane:

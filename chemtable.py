@@ -1,6 +1,29 @@
-from attr import attrs, attrib
-from constants import AN_H, AN_HE, AN_N, AN_O, AN_NE, AN_AR, AN_KR, AN_XE, AN_NH3, AN_H2O, AN_CO2, AN_O3, AN_CH4
-from constants import MAX_HE_IPP, MAX_N2_IPP, MAX_O2_IPP, MAX_NE_IPP, MAX_AR_IPP, MAX_KR_IPP, MAX_XE_IPP, MAX_NH3_IPP, MAX_CO2_IPP, MAX_O3_IPP, MAX_CH4_IPP
+from attr import attrib
+from attr import attrs
+from constants import AN_AR
+from constants import AN_CH4
+from constants import AN_CO2
+from constants import AN_H
+from constants import AN_H2O
+from constants import AN_HE
+from constants import AN_KR
+from constants import AN_N
+from constants import AN_NE
+from constants import AN_NH3
+from constants import AN_O
+from constants import AN_O3
+from constants import AN_XE
+from constants import MAX_AR_IPP
+from constants import MAX_CH4_IPP
+from constants import MAX_CO2_IPP
+from constants import MAX_HE_IPP
+from constants import MAX_KR_IPP
+from constants import MAX_N2_IPP
+from constants import MAX_NE_IPP
+from constants import MAX_NH3_IPP
+from constants import MAX_O2_IPP
+from constants import MAX_O3_IPP
+from constants import MAX_XE_IPP
 
 # This module is used for figuring out atmospheric chemistry, but it leaves
 # some things to be desired. In particular, as coded, it does not really

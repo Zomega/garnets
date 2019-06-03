@@ -71,13 +71,11 @@ PPM_PRESSURE = EARTH_SURF_PRES_IN_MILLIBARS / 1000000.
 MILLIBARS_PER_BAR = 1000.
 MILLIBARS_PER_ATM = 1013.25
 
-
 # --- BELOW THIS LINE IS STUFF RELATED TO ATMOSPHERIC CHEMISTRY
 
 # Misc stuff I don't know what to make of.
 GAS_RETENTION_THRESHOLD = 6.0  # ratio of esc vel to RMS vel
 CLOUD_COVERAGE_FACTOR = 1.839E-8  # km^2/kg
-
 
 # Atomic weights of common gasses used for RMS velocity calcs
 # This table is from Dole's book "Habitable Planets for Man", p. 38
