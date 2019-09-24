@@ -15,20 +15,27 @@ class CircumstellarDustLane:
         self.gas_present = gas_present
 
     def __repr__(self):
-        return "\tINNER: " + str(self.inner) + ", OUTER: " + str(self.outer) + " D:" + str(self.dust_present) + "\n"
+        return "\tINNER: %s, OUTER: %s D: %s G: %s\n" % (
+            self.inner,
+            self.outer,
+            self.dust_present,
+            self.gas_present,
+        )
 
 
 class CircumstellarDisk:
     def __init__(self, star):
         self.star = star
-        self.planet_inner_bound = 0.3 * (star.mass_ratio ** 0.333)
-        self.planet_outer_bound = 50 * (star.mass_ratio ** 0.333)
+        self.planet_inner_bound = 0.3 * (star.mass_ratio**0.333)
+        self.planet_outer_bound = 50 * (star.mass_ratio**0.333)
 
-        self.lanes = [CircumstellarDustLane(
-            0, star.stellar_dust_limit, True, True)]
+        self.lanes = [
+            CircumstellarDustLane(0, star.stellar_dust_limit, True, True)
+        ]
 
     def dust_density(self, a):
-        return DUST_DENSITY_COEFF * sqrt(self.star.mass_ratio) * exp(-ALPHA * (a ** (1.0 / N)))
+        return DUST_DENSITY_COEFF * sqrt(self.star.mass_ratio) * exp(
+            -ALPHA * (a**(1.0 / N)))
 
     @property
     def dust_left(self):
@@ -41,7 +48,9 @@ class CircumstellarDisk:
     def dust_available(self, inner, outer):
         for lane in self.lanes:
             # See if the lanes overlap.
-            if (lane.inner <= inner and lane.outer > inner) or (lane.outer >= outer and lane.inner < outer):
+            if (lane.inner <= inner
+                    and lane.outer > inner) or (lane.outer >= outer
+                                                and lane.inner < outer):
                 if lane.dust_present:
                     return True
         return False
@@ -52,7 +61,8 @@ class CircumstellarDisk:
         for lane in self.lanes:
 
             # If the lane doesn't overlap, then we should just continue.
-            if (lane.outer <= planetoid.inner_effect_limit) or (lane.inner >= planetoid.outer_effect_limit):
+            if (lane.outer <= planetoid.inner_effect_limit) or (
+                    lane.inner >= planetoid.outer_effect_limit):
                 continue
 
             # Now we need to figure out the density of gas and dust in the lane.
@@ -61,12 +71,14 @@ class CircumstellarDisk:
                 gas_density = 0.0
             else:
                 dust_density = self.dust_density(planetoid.orbit.a)
-                if planetoid.mass < planetoid.critical_mass or (not lane.gas_present):
+                if planetoid.mass < planetoid.critical_mass or (
+                        not lane.gas_present):
                     gas_density = 0.0
                 else:
                     # TODO: This is DEEP Magic. Figure it out somehow.
-                    gas_density = (K - 1.0) * dust_density / (1.0 +
-                                                              sqrt(planetoid.critical_mass / planetoid.mass) * (K - 1.0))
+                    gas_density = (K - 1.0) * dust_density / (
+                        1.0 + sqrt(planetoid.critical_mass / planetoid.mass) *
+                        (K - 1.0))
 
                 # Compute the width of the overlap between the region of effect and the lane.
                 bandwidth = planetoid.outer_effect_limit - planetoid.inner_effect_limit
@@ -113,16 +125,23 @@ class CircumstellarDisk:
 
             if lane.inner < planetoid.inner_effect_limit:
                 # Make an lane for the inside of the old lane
-                new_lanes.append(CircumstellarDustLane(
-                    lane.inner, planetoid.inner_effect_limit, lane.dust_present, lane.gas_present))
+                new_lanes.append(
+                    CircumstellarDustLane(lane.inner,
+                                          planetoid.inner_effect_limit,
+                                          lane.dust_present, lane.gas_present))
             if lane.outer > planetoid.outer_effect_limit:
                 print("OUTER")
                 # Make an lane for the outside of the old lane
-                new_lanes.append(CircumstellarDustLane(
-                    lane.outer, planetoid.outer_effect_limit, lane.dust_present, lane.gas_present))
+                new_lanes.append(
+                    CircumstellarDustLane(lane.outer,
+                                          planetoid.outer_effect_limit,
+                                          lane.dust_present, lane.gas_present))
             # Make a lane for the overlapped portion.
-            new_lanes.append(CircumstellarDustLane(max(lane.inner, planetoid.inner_effect_limit), min(
-                lane.outer, planetoid.outer_effect_limit), False, gas and lane.gas_present))
+            new_lanes.append(
+                CircumstellarDustLane(
+                    max(lane.inner, planetoid.inner_effect_limit),
+                    min(lane.outer, planetoid.outer_effect_limit), False, gas
+                    and lane.gas_present))
         self.lanes = new_lanes
 
     def accrete_dust(self, planetoid):
@@ -131,7 +150,11 @@ class CircumstellarDisk:
             new_dust_mass, new_gas_mass = self.collect_dust(planetoid)
             planetoid.dust_mass = new_dust_mass
             planetoid.gas_mass = new_gas_mass
-            print((planetoid.mass - last_mass) / last_mass)
+            print(
+                "Growth since last step",
+                round((planetoid.mass - last_mass) / last_mass, 2),
+                "%"
+            )
             # Accretion has slowed enough. Stop trying.
             if (planetoid.mass - last_mass) < (0.0001 * last_mass):
                 break

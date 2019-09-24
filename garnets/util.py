@@ -1,5 +1,6 @@
-# These are a bunch of functions and macros from stargen that either are redundant with default python functionality, or are not included somehow.
-# Pretty much all of these should be removed.
+# These are a bunch of functions and macros from stargen that either
+# are redundant with default python functionality, or are not included
+# somehow. Pretty much all of these should be removed.
 import random
 
 
