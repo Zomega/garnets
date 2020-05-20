@@ -1,6 +1,6 @@
 import attr
 
-from attr import attrib
+from attr import attr
 from attr import attrs
 from constants import B
 from constants import DISK_ECCENTRICITY
@@ -15,12 +15,12 @@ from tabulate import tabulate
 
 @attrs(repr=False)
 class Star():
-    mass_ratio = attrib()
-    age = attrib()
+    mass_ratio = attr()
+    age = attr()
 
-    name = attrib(default="Unnamed Star")
+    name = attr(default="Unnamed Star")
 
-    planets = attrib(default=attr.Factory(list))
+    planets = attr(factory=list)
 
     @property
     # Approximates the luminosity of the star.
@@ -59,14 +59,14 @@ class Star():
 
 @attrs
 class StellarSystem:
-    star = attrib()
-    planets = attrib()
+    star = attr()
+    planets = attr()
 
 
 @attrs(repr=False)
 class Orbit:
-    a = attrib()  # semi-major axis of solar orbit (in AU)
-    e = attrib()  # eccentricity of solar orbit
+    a = attr()  # semi-major axis of solar orbit (in AU)
+    e = attr()  # eccentricity of solar orbit
 
     @property
     def periapsis(self):
@@ -82,9 +82,9 @@ class Orbit:
 
 @attrs
 class Planetoid():
-    orbit = attrib()
-    dust_mass = attrib()
-    gas_mass = attrib()
+    orbit = attr()
+    dust_mass = attr()
+    gas_mass = attr()
 
     @property
     def mass(self):
@@ -114,7 +114,7 @@ class Planetoid():
 
 @attrs
 class Planetesimal(Planetoid):
-    disk = attrib()
+    disk = attr()
 
     @property
     def critical_mass(self):
@@ -133,8 +133,8 @@ def mass_repr(mass):
 
 @attrs(repr=False)
 class Protoplanet(Planetoid):
-    star = attrib()
-    moons = attrib(default=attr.Factory(list))
+    star = attr()
+    moons = attr(factory=list)
 
     def add_moon(self, moon):
         self.moons.append(moon)
@@ -151,14 +151,14 @@ class Protoplanet(Planetoid):
 
     def __repr__(self):
 
-        return ("\tMass: " + mass_repr(self.mass) + " = attrib() Orbit: " +
+        return ("\tMass: " + mass_repr(self.mass) + " = attr() Orbit: " +
                 str(self.orbit.a) + " AU, Moons: " + str(len(self.moons)) +
                 "\n")
 
 
 @attrs
 class Protomoon(Planetoid):
-    protoplanet = attrib()
+    protoplanet = attr()
 
 
 # TODO(woursler): Go over these with a fine tooth comb. Many are not relevant, or only relevant during initialization.
@@ -167,52 +167,52 @@ class Protomoon(Planetoid):
 @attrs(repr=False)
 class Planet():
     # Orbital details.
-    orbit = attrib()
+    orbit = attr()
 
-    axial_tilt = attrib()  # units of degrees
-    mass = attrib()  # mass (in solar masses)
-    dust_mass = attrib()  # mass, ignoring gas
-    gas_mass = attrib()  # mass, ignoring dust
+    axial_tilt = attr()  # units of degrees
+    mass = attr()  # mass (in solar masses)
+    dust_mass = attr()  # mass, ignoring gas
+    gas_mass = attr()  # mass, ignoring dust
 
-    moons = attrib(default=attr.Factory(list))
+    moons = attr(factory=list)
 
     #   ZEROES start here -- TODO(woursler): A bunch of these should be other Zero-like types.
-    gas_giant = attrib(default=False)  # TRUE if the planet is a gas giant
-    moon_a = attrib(default=0)  # semi-major axis of lunar orbit (in AU)
-    moon_e = attrib(default=0)  # eccentricity of lunar orbit
-    core_radius = attrib(default=0)  # radius of the rocky core (in km)
-    radius = attrib(default=0)  # equatorial radius (in km)
-    orbit_zone = attrib(default=0)  # the 'zone' of the planet
-    density = attrib(default=0)  # density (in g/cc)
-    orb_period = attrib(default=0)  # length of the local year (days)
-    day = attrib(default=0)  # length of the local day (hours)
-    resonant_period = attrib(default=0)  # TRUE if in resonant rotation
-    esc_velocity = attrib(default=0)  # units of cm/sec
-    surf_accel = attrib(default=0)  # units of cm/sec2
-    surf_grav = attrib(default=0)  # units of Earth gravities
-    rms_velocity = attrib(default=0)  # units of cm/sec
-    molec_weight = attrib(default=0)  # smallest molecular weight retained
-    volatile_gas_inventory = attrib(default=0)
-    surf_pressure = attrib(default=0)  # units of millibars (mb)
-    greenhouse_effect = attrib(default=0)  # runaway greenhouse effect?
-    boil_po = attrib(default=0)  # the boiling po of water (Kelvin)
-    albedo = attrib(default=0)  # albedo of the planet
-    exospheric_temp = attrib(default=0)  # units of degrees Kelvin
-    estimated_temp = attrib(default=0)  # quick non-iterative estimate (K)
+    gas_giant = attr(default=False)  # TRUE if the planet is a gas giant
+    moon_a = attr(default=0)  # semi-major axis of lunar orbit (in AU)
+    moon_e = attr(default=0)  # eccentricity of lunar orbit
+    core_radius = attr(default=0)  # radius of the rocky core (in km)
+    radius = attr(default=0)  # equatorial radius (in km)
+    orbit_zone = attr(default=0)  # the 'zone' of the planet
+    density = attr(default=0)  # density (in g/cc)
+    orb_period = attr(default=0)  # length of the local year (days)
+    day = attr(default=0)  # length of the local day (hours)
+    resonant_period = attr(default=0)  # TRUE if in resonant rotation
+    esc_velocity = attr(default=0)  # units of cm/sec
+    surf_accel = attr(default=0)  # units of cm/sec2
+    surf_grav = attr(default=0)  # units of Earth gravities
+    rms_velocity = attr(default=0)  # units of cm/sec
+    molec_weight = attr(default=0)  # smallest molecular weight retained
+    volatile_gas_inventory = attr(default=0)
+    surf_pressure = attr(default=0)  # units of millibars (mb)
+    greenhouse_effect = attr(default=0)  # runaway greenhouse effect?
+    boil_po = attr(default=0)  # the boiling po of water (Kelvin)
+    albedo = attr(default=0)  # albedo of the planet
+    exospheric_temp = attr(default=0)  # units of degrees Kelvin
+    estimated_temp = attr(default=0)  # quick non-iterative estimate (K)
     # for terrestrial moons and the like
-    estimated_terr_temp = attrib(default=0)
-    surf_temp = attrib(default=0)  # surface temperature in Kelvin
-    greenhs_rise = attrib(default=0)  # Temperature rise due to greenhouse
-    high_temp = attrib(default=0)  # Day-time temperature
-    low_temp = attrib(default=0)  # Night-time temperature
-    max_temp = attrib(default=0)  # Summer/Day
-    min_temp = attrib(default=0)  # Wer/Night
-    hydrosphere = attrib(default=0)  # fraction of surface covered
-    cloud_cover = attrib(default=0)  # fraction of surface covered
-    ice_cover = attrib(default=0)  # fraction of surface covered
-    sun = attrib(default=0)
-    atmosphere = attrib(default=None)
-    type = attrib(default=PlanetType.UNKNOWN)  # Type code
+    estimated_terr_temp = attr(default=0)
+    surf_temp = attr(default=0)  # surface temperature in Kelvin
+    greenhs_rise = attr(default=0)  # Temperature rise due to greenhouse
+    high_temp = attr(default=0)  # Day-time temperature
+    low_temp = attr(default=0)  # Night-time temperature
+    max_temp = attr(default=0)  # Summer/Day
+    min_temp = attr(default=0)  # Wer/Night
+    hydrosphere = attr(default=0)  # fraction of surface covered
+    cloud_cover = attr(default=0)  # fraction of surface covered
+    ice_cover = attr(default=0)  # fraction of surface covered
+    sun = attr(default=0)
+    atmosphere = attr(default=None)
+    type = attr(default=PlanetType.UNKNOWN)  # Type code
 
     #   ZEROES end here
 

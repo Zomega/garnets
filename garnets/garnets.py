@@ -3,6 +3,7 @@ import random
 
 from accrete import CircumstellarDisk
 from chemtable import gases
+from chemtable import lookup_gas
 from constants import ASTEROID_MASS_LIMIT
 from constants import EARTH_ALBEDO
 from constants import EARTH_AVERAGE_KELVIN
@@ -10,11 +11,8 @@ from constants import EARTH_EXOSPHERE_TEMP
 from constants import ECCENTRICITY_COEFF
 from constants import FREEZING_POINT_OF_WATER
 from constants import GAS_GIANT_ALBEDO
-from constants import HELIUM
 from constants import KM_PER_AU
 from constants import MILLIBARS_PER_BAR
-from constants import MOL_HYDROGEN
-from constants import MOL_NITROGEN
 from constants import PROTOPLANET_MASS
 from constants import SUN_MASS_IN_EARTH_MASSES
 from enviroment import PlanetType
@@ -388,7 +386,7 @@ def generate_planet(protoplanet,
 
     planet.exospheric_temp = EARTH_EXOSPHERE_TEMP / \
         ((planet.orbit.a / star.r_ecosphere) ** 2)
-    planet.rms_velocity = rms_vel(MOL_NITROGEN, planet.exospheric_temp)
+    planet.rms_velocity = rms_vel(lookup_gas('N2').weight, planet.exospheric_temp)
     planet.core_radius = kothari_radius(planet.dust_mass, False,
                                         planet.orbit_zone)
 
@@ -432,8 +430,8 @@ def generate_planet(protoplanet,
             h2_loss = 0.0
             he_loss = 0.0
 
-            h2_life = gas_life(MOL_HYDROGEN, planet)
-            he_life = gas_life(HELIUM, planet)
+            h2_life = gas_life(lookup_gas('H'), planet)
+            he_life = gas_life(lookup_gas('He'), planet)
 
             if (h2_life < star.age):
 

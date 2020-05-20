@@ -1,6 +1,7 @@
+from attr import attr
+from attr import attrs
+from chemtable import lookup_gas
 from constants import AIRLESS_ICE_ALBEDO
-from constants import AN_O
-from constants import ATOMIC_NITROGEN
 from constants import CHANGE_IN_EARTH_ANG_VEL
 from constants import CLOUD_ALBEDO
 from constants import CLOUD_COVERAGE_FACTOR
@@ -22,16 +23,12 @@ from constants import FREEZING_POINT_OF_WATER
 from constants import GAS_RETENTION_THRESHOLD
 from constants import GRAV_CONSTANT
 from constants import GREENHOUSE_TRIGGER_ALBEDO
-from constants import H20_ASSUMED_PRESSURE
+from constants import H2O_ASSUMED_PRESSURE
 from constants import ICE_ALBEDO
 from constants import J
 from constants import KM_EARTH_RADIUS
-from constants import MAX_O2_IPP
 from constants import MILLIBARS_PER_BAR
-from constants import MIN_O2_IPP
 from constants import MOLAR_GAS_CONST
-from constants import MOL_HYDROGEN
-from constants import MOL_NITROGEN
 from constants import RADIANS_PER_ROTATION
 from constants import ROCKY_AIRLESS_ALBEDO
 from constants import ROCKY_ALBEDO
@@ -39,7 +36,6 @@ from constants import SECONDS_PER_HOUR
 from constants import SOLAR_MASS_IN_GRAMS
 from constants import SUN_MASS_IN_EARTH_MASSES
 from constants import WATER_ALBEDO
-from constants import WATER_VAPOR
 from enum import Enum
 from math import cos
 from math import exp
@@ -408,7 +404,7 @@ def cloud_fraction(surf_temp, smallest_MW_retained, equat_radius,
     Glass's book "Introduction to Planetary Geology", p.46.
     The 'CLOUD_COVERAGE_FACTOR' is the amount of surface area on Earth
     covered by one Kg. of cloud.'''
-    if smallest_MW_retained > WATER_VAPOR:
+    if smallest_MW_retained > lookup_gas('H2O').weight:
         return 0.0
     else:
         surf_area = 4.0 * pi * (equat_radius**2)
@@ -570,9 +566,10 @@ def opacity(molecular_weight, surf_pressure):
     return (optical_depth)
 
 
-def gas_life(molecular_weight, planet):
+def gas_life(gas, planet):
     ''' calculates the number of years it takes for 1/e of a gas to escape  from a planet's atmosphere.
     Taken from Dole p. 34. He cites Jeans (1916) & Jones (1923)'''
+    molecular_weight = gas.weight
     v = rms_vel(molecular_weight, planet.exospheric_temp)
     g = planet.surf_grav * EARTH_ACCELERATION
     r = (planet.radius * CM_PER_KM)
@@ -595,6 +592,9 @@ def gas_life(molecular_weight, planet):
 
     return years
 
+@attrs
+class GasWrapper:
+    weight = attr()
 
 def min_molec_weight(planet):
     '''TODO(woursler): Not sure this is ported well with the guesses and all. Also it's totally unreadable.'''
@@ -606,7 +606,7 @@ def min_molec_weight(planet):
     guess_1 = molecule_limit(mass, radius, temp)
     guess_2 = guess_1
 
-    life = gas_life(guess_1, planet)
+    life = gas_life(GasWrapper(weight=guess_1), planet)
 
     loops = 0
 
@@ -615,19 +615,19 @@ def min_molec_weight(planet):
     if life > target:
         while life > target and loops < 25:
             guess_1 = guess_1 / 2.0
-            life = gas_life(guess_1, planet)
+            life = gas_life(GasWrapper(weight=guess_1), planet)
             loops += 1
     else:
         while life < target and loops < 25:
             guess_2 = guess_2 * 2.0
-            life = gas_life(guess_2, planet)
+            life = gas_life(GasWrapper(weight=guess_2), planet)
             loops += 1
 
     loops = 0
 
     while (guess_2 - guess_1) > 0.1 and loops < 25:
         guess_3 = (guess_1 + guess_2) / 2.0
-        life = gas_life(guess_3, planet)
+        life = gas_life(GasWrapper(weight=guess_3), planet)
 
         if life < target:
             guess_1 = guess_3
@@ -636,7 +636,7 @@ def min_molec_weight(planet):
 
         loops += 1
 
-    life = gas_life(guess_2, planet)
+    life = gas_life(GasWrapper(weight=guess_2), planet)
 
     return guess_2
 
@@ -751,10 +751,10 @@ def iterate_surface_temp(planet):
                 ["Albedo", planet.albedo],
             ]))
 
-        h2_life = gas_life(MOL_HYDROGEN, planet)
-        h2o_life = gas_life(WATER_VAPOR, planet)
-        n2_life = gas_life(MOL_NITROGEN, planet)
-        n_life = gas_life(ATOMIC_NITROGEN, planet)
+        h2_life = gas_life(lookup_gas('H2'), planet)
+        h2o_life = gas_life(lookup_gas('H2O'), planet)
+        n2_life = gas_life(lookup_gas('N2'), planet)
+        n_life = gas_life(lookup_gas('N'), planet)
 
         print('Gas lifetimes:\n' + tabulate([
             ['H2', h2_life],
@@ -799,7 +799,7 @@ def iterate_surface_temp(planet):
 def inspired_partial_pressure(surf_pressure, gas_pressure):
     '''Inspired partial pressure, takes into account humidification of the
     air in the nasal passage and throat This formula is on Dole's p. 14'''
-    pH2O = H20_ASSUMED_PRESSURE
+    pH2O = H2O_ASSUMED_PRESSURE
     fraction = gas_pressure / surf_pressure
 
     return (surf_pressure - pH2O) * fraction
