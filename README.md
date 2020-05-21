@@ -9,7 +9,9 @@ The name is an Anagram of the original.
 # StarGen -- On the Shoulders of Giants
 
 Garnets directly owes its existence to an earlier program,
-Jim Burrows' StarGen, which itself has a complicated lineage.
+Jim Burrows' StarGen, which itself has a complicated lineage tracing
+back at least to 1969 (Dole's ACCRETE program forms at least the
+conceptual basis for much of the StarGen code).
 
 ## What is StarGen?
 
