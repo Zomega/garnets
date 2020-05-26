@@ -64,7 +64,7 @@ R =
 
 ```
 
-Equation 23 is what stargen uses, but Kothari immediately simplified by
+Equation 23 is what StarGen uses, but Kothari immediately simplified by
 determining the maxium radius for a given material, and rewriting in terms
 of that. Equations 24-28 summarize this rewriting, and I will reproduce them
 here so the code is clear.
