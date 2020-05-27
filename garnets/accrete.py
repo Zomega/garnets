@@ -1,41 +1,65 @@
+from attr import attr
+from attr import attrs
 from constants import ALPHA
 from constants import DUST_DENSITY_COEFF
-from constants import K
-from constants import N
+from constants import GAS_DUST_RATIO
 from math import exp
 from math import pi
 from math import sqrt
+from xatu.core import quantity_formatter
+from xatu.core import quantity_repr
+from xatu.core import dimensionless_with_units
+from xatu.units import au
+from xatu.units import kg
+from xatu.units import m, solar_mass
+from typing import List
+from stellar_system import mass_repr
 
 
+@attrs
 class CircumstellarDustLane:
-    def __init__(self, inner_edge, outer_edge, dust_present, gas_present):
-        self.inner = inner_edge
-        self.outer = outer_edge
-        self.dust_present = dust_present
-        self.gas_present = gas_present
+    inner = attr(repr=quantity_formatter(au))
+    outer = attr(repr=quantity_formatter(au))
 
-    def __repr__(self):
-        return "\tINNER: %s, OUTER: %s D: %s G: %s\n" % (
-            self.inner,
-            self.outer,
-            self.dust_present,
-            self.gas_present,
-        )
+    dust_present: bool = attr()
+    gas_present: bool = attr()
 
 
+@attrs
 class CircumstellarDisk:
-    def __init__(self, star):
-        self.star = star
-        self.planet_inner_bound = 0.3 * (star.mass_ratio**0.333)
-        self.planet_outer_bound = 50 * (star.mass_ratio**0.333)
+    star = attr()
+    lanes: List[CircumstellarDustLane] = attr(default=None)
 
-        self.lanes = [
-            CircumstellarDustLane(0, star.stellar_dust_limit, True, True)
-        ]
+    @property
+    def planet_inner_bound(self):
+        # TODO(woursler): Confirm AU?
+        return 0.3 * (self.star.mass_ratio**(1/3)) * au
+
+    @property
+    def planet_outer_bound(self):
+        # TODO(woursler): Confirm AU?
+        return 50 * (self.star.mass_ratio**(1/3)) * au
+
+    def __attrs_post_init__(self):
+        if self.lanes is None:
+            self.lanes = [
+                CircumstellarDustLane(
+                    0*au,
+                    self.star.stellar_dust_limit,
+                    dust_present=True,
+                    gas_present=True,
+                )
+            ]
 
     def dust_density(self, a):
-        return DUST_DENSITY_COEFF * sqrt(self.star.mass_ratio) * exp(
-            -ALPHA * (a**(1.0 / N)))
+        return (
+            DUST_DENSITY_COEFF
+            * sqrt(self.star.mass_ratio)
+            * exp(
+                -ALPHA * (dimensionless_with_units(a, au)**(1/3))
+            )
+            * solar_mass / au ** 3
+        )  # TODO(woursler): Figure out the implicit units, include in DUST_DENSITY_COEFF
 
     @property
     def dust_left(self):
@@ -56,8 +80,8 @@ class CircumstellarDisk:
         return False
 
     def collect_dust(self, planetoid):
-        new_dust_mass = 0
-        new_gas_mass = 0
+        new_dust_mass = 0 * kg
+        new_gas_mass = 0 * kg
         for lane in self.lanes:
 
             # If the lane doesn't overlap, then we should just continue.
@@ -67,18 +91,18 @@ class CircumstellarDisk:
 
             # Now we need to figure out the density of gas and dust in the lane.
             if not lane.dust_present:
-                dust_density = 0.0
-                gas_density = 0.0
+                dust_density = 0 * kg / m ** 3
+                gas_density = 0 * kg / m ** 3
             else:
                 dust_density = self.dust_density(planetoid.orbit.a)
                 if planetoid.mass < planetoid.critical_mass or (
                         not lane.gas_present):
-                    gas_density = 0.0
+                    gas_density = 0 * kg / m ** 3
                 else:
                     # TODO: This is DEEP Magic. Figure it out somehow.
-                    gas_density = (K - 1.0) * dust_density / (
-                        1.0 + sqrt(planetoid.critical_mass / planetoid.mass) *
-                        (K - 1.0))
+                    gas_density = (GAS_DUST_RATIO - 1) * dust_density / (
+                        1 + sqrt(planetoid.critical_mass / planetoid.mass) *
+                        (GAS_DUST_RATIO - 1))
 
                 # Compute the width of the overlap between the region of effect and the lane.
                 bandwidth = planetoid.outer_effect_limit - planetoid.inner_effect_limit
@@ -87,15 +111,15 @@ class CircumstellarDisk:
                     max(lane.inner, planetoid.inner_effect_limit)
 
                 temp1 = planetoid.outer_effect_limit - lane.outer
-                if (temp1 < 0.0):
-                    temp1 = 0.0
+                if temp1 < 0 * m:
+                    temp1 = 0 * m
 
                 temp2 = lane.inner - planetoid.inner_effect_limit
-                if (temp2 < 0.0):
-                    temp2 = 0.0
+                if temp2 < 0 *m:
+                    temp2 = 0 * m
 
-                temp = 4.0 * pi * (planetoid.orbit.a ** 2.0) * planetoid.reduced_mass * \
-                    (1.0 - planetoid.orbit.e * (temp1 - temp2) / bandwidth)
+                temp = 4 * pi * (planetoid.orbit.a ** 2) * planetoid.reduced_mass * \
+                    (1 - planetoid.orbit.e * (temp1 - temp2) / bandwidth)
                 volume = temp * width
 
                 new_dust_mass += volume * dust_density
@@ -140,8 +164,11 @@ class CircumstellarDisk:
             new_lanes.append(
                 CircumstellarDustLane(
                     max(lane.inner, planetoid.inner_effect_limit),
-                    min(lane.outer, planetoid.outer_effect_limit), False, gas
-                    and lane.gas_present))
+                    min(lane.outer, planetoid.outer_effect_limit),
+                    dust_present=False,
+                    gas_present=gas and lane.gas_present,
+                )
+            )
         self.lanes = new_lanes
 
     def accrete_dust(self, planetoid):
@@ -159,5 +186,5 @@ class CircumstellarDisk:
             if (planetoid.mass - last_mass) < (0.0001 * last_mass):
                 break
             last_mass = planetoid.mass
-        print("Accretion halted at ", planetoid.mass)
+        print("Accretion halted at %s." % mass_repr(planetoid.mass))
         self.update_dust_lanes(planetoid)

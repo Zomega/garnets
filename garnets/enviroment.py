@@ -5,19 +5,14 @@ from constants import AIRLESS_ICE_ALBEDO
 from constants import CHANGE_IN_EARTH_ANG_VEL
 from constants import CLOUD_ALBEDO
 from constants import CLOUD_COVERAGE_FACTOR
-from constants import CM_PER_KM
-from constants import CM_PER_METER
-from constants import DAYS_IN_A_YEAR
-from constants import EARTH_ACCELERATION
 from constants import EARTH_ALBEDO
-from constants import EARTH_AVERAGE_KELVIN
+from constants import EARTH_AVERAGE_TEMP
 from constants import EARTH_AXIAL_TILT
 from constants import EARTH_CONVECTION_FACTOR
 from constants import EARTH_DENSITY
 from constants import EARTH_EFFECTIVE_TEMP
-from constants import EARTH_MASS_IN_GRAMS
 from constants import EARTH_RADIUS
-from constants import EARTH_SURF_PRES_IN_MILLIBARS
+from constants import EARTH_SURF_PRES
 from constants import EARTH_WATER_MASS_PER_AREA
 from constants import FREEZING_POINT_OF_WATER
 from constants import GAS_RETENTION_THRESHOLD
@@ -26,33 +21,44 @@ from constants import GREENHOUSE_TRIGGER_ALBEDO
 from constants import H2O_ASSUMED_PRESSURE
 from constants import ICE_ALBEDO
 from constants import J
-from constants import KM_EARTH_RADIUS
-from constants import MILLIBARS_PER_BAR
 from constants import MOLAR_GAS_CONST
-from constants import RADIANS_PER_ROTATION
 from constants import ROCKY_AIRLESS_ALBEDO
 from constants import ROCKY_ALBEDO
-from constants import SECONDS_PER_HOUR
-from constants import SOLAR_MASS_IN_GRAMS
-from constants import SUN_MASS_IN_EARTH_MASSES
 from constants import WATER_ALBEDO
 from enum import Enum
-from math import cos
 from math import exp
-from math import fabs
 from math import inf as INCREDIBLY_LARGE_NUMBER
 from math import log
 from math import pi
-from math import sqrt
 from tabulate import tabulate
 from util import about
-from util import pow1_4
-from util import pow2
-from util import pow3
+from xatu.core import dimensionless_with_units
+from xatu.core import quantity_repr
+from xatu.core import with_units
+from xatu.math import cos
+from xatu.math import sqrt
+from xatu.units import K
+from xatu.units import atm
+from xatu.units import au
+from xatu.units import bar
+from xatu.units import cm
+from xatu.units import dalton
+from xatu.units import deg
+from xatu.units import earth_mass
+from xatu.units import g_force
+from xatu.units import gram
+from xatu.units import hour
+from xatu.units import kg
+from xatu.units import km
+from xatu.units import m
+from xatu.units import mol
+from xatu.units import rad
+from xatu.units import s
+from xatu.units import solar_mass
+from xatu.units import turn
+from xatu.units import year
 
 # TODO(woursler): Break this file up.
-
-# TODO(woursler): This whole file desperately needs natu.
 
 VERBOSE = True
 
@@ -80,9 +86,9 @@ class PlanetType(Enum):
     ONE_FACE = 11
 
 
-class Zone(
-        Enum
-):  # TODO(woursler): Figure it out. Might be related to habitable zone?
+class Zone(Enum):
+    # TODO(woursler): Figure out the meaning of this?
+    # Might be related to habitable zone?
     ZONE_1 = 1
     ZONE_2 = 2
     ZONE_3 = 3
@@ -90,42 +96,32 @@ class Zone(
 
 def orb_zone(luminosity, orb_radius):
     '''The orbital 'zone' of the particle.'''
-    if orb_radius < (4.0 * sqrt(luminosity)):
+    if orb_radius < (4 * sqrt(luminosity) * au):
         return Zone.ZONE_1
-    elif orb_radius < (15.0 * sqrt(luminosity)):
+    elif orb_radius < (15 * sqrt(luminosity) * au):
         return Zone.ZONE_2
     else:
         return Zone.ZONE_3
 
 
 def volume_radius(mass, density):
-    '''The mass is in units of solar masses, the density is in units
-    of grams/cc.  The radius returned is in units of km.'''
-
-    mass = mass * SOLAR_MASS_IN_GRAMS
+    print(mass, density)
     volume = mass / density
-    radius_in_cm = ((3.0 * volume) / (4.0 * pi))**(1.0 / 3.0)
-    return radius_in_cm / CM_PER_KM
-
-
-# These constants are specific to kothari_radius.
-# All units are in cgs system, ie: cm, g, dynes, etc.
-A1_20 = 6.485E12
-A2_20 = 4.0032E-8
-BETA_20 = 5.71E12
-JIMS_FUDGE = 1.004
+    return (volume / ((4/3) * pi))**(1/3)
 
 
 def kothari_radius(mass, giant, zone):
     '''Returns the radius of the planet in kilometers.
 
-    The mass passed in is in units of solar masses.
-    This formula is listed as eq.9 in Fogg's article, some typos
-    crop up in that eq.  See "The Internal Constitution of Planets", by
+    See "The Internal Constitution of Planets", by
     Dr. D. S. Kothari, Mon. Not. of the Royal Astronomical Society, 96
-    pp.833-843, for the derivation.  Specifically, is Kothari's
-    eq.23, appears on page 840.'''
+    pp.833-843, for the derivation. Page 840 has all the equations used here.
 
+    Common atomic_weights / atomic_nums are likely taken from Fogg?
+    '''
+
+    # TODO(woursler): Move this outside, so that more specific materials
+    # may be given.
     if zone == Zone.ZONE_1:
         if giant:
             atomic_weight = 9.5
@@ -154,30 +150,28 @@ def kothari_radius(mass, giant, zone):
                 atomic_weight = 10.0
                 atomic_num = 5.0
 
-    temp1 = atomic_weight * atomic_num
+    # See documentation: //docs/kothari.md
+    # Kothari eq. 25
+    radius_maximizing_mass = 1.04 * 10 ** -3 * \
+        (atomic_num ** 3 / atomic_weight ** 2) * solar_mass
+    # Kothari eq. 26
+    maximum_radius = 1.12 * 10 ** 10 * \
+        (atomic_num ** (2/3) / atomic_num) * cm
 
-    temp = (2.0 * BETA_20 * (SOLAR_MASS_IN_GRAMS ** (1.0 / 3.0))) / \
-        (A1_20 * (temp1 ** (1.0 / 3.0)))
-
-    temp2 = A2_20 * (atomic_weight ** (4.0 / 3.0)) * \
-        (SOLAR_MASS_IN_GRAMS ** (2.0 / 3.0))
-    temp2 = temp2 * (mass**(2.0 / 3.0))
-    temp2 = temp2 / (A1_20 * (atomic_num**2))
-    temp2 = 1.0 + temp2
-    temp = temp / temp2
-    temp = (temp * (mass**(1.0 / 3.0))) / CM_PER_KM
-
-    temp = temp / JIMS_FUDGE
-
-    return (temp)
+    # Kothari eq. 26'
+    mass_ratio = mass / radius_maximizing_mass
+    return maximum_radius * 2 * mass_ratio ** (1/3) / (1 + mass_ratio ** (2/3))
 
 
 def empirical_density(mass, orb_radius, r_ecosphere, gas_giant):
-    '''The mass passed in is in units of solar masses, the orbital radius
-    is in units of AU.  The density is returned in units of grams/cc.'''
 
-    temp = (mass * SUN_MASS_IN_EARTH_MASSES)**(1.0 / 8.0)
-    temp = temp * (r_ecosphere / orb_radius)**(1.0 / 4.0)
+    # TODO(woursler): WTF is this? Re work some way that makes a lick of sense.
+
+    mass = dimensionless_with_units(mass, earth_mass)
+    orb_radius = dimensionless_with_units(orb_radius, au)
+    r_ecosphere = dimensionless_with_units(r_ecosphere, au)
+
+    temp = (sqrt(mass) * r_ecosphere / orb_radius)**(1/4) * gram / cm ** 3
     if gas_giant:
         return (temp * 1.2)
     else:
@@ -185,21 +179,30 @@ def empirical_density(mass, orb_radius, r_ecosphere, gas_giant):
 
 
 def volume_density(mass, equat_radius):
-    '''The mass passed in is in units of solar masses, the equatorial
-    radius is in km.  The density is returned in units of grams/cc.'''
-
-    mass = mass * SOLAR_MASS_IN_GRAMS
-    equat_radius = equat_radius * CM_PER_KM
-    volume = (4.0 * pi * (equat_radius**3)) / 3.0
+    volume = (4 / 3) * pi * equat_radius**3
     return (mass / volume)
 
 
 def period(separation, small_mass, large_mass):
-    '''The separation is in units of AU, both masses are in units of solar
-    masses.   The period returned is in terms of Earth days.'''
+    '''The total period of the given two-body co-orbital system.'''
+    if small_mass > large_mass:
+        return period(separation, large_mass, small_mass)
 
-    period_in_years = sqrt((separation**3) / (small_mass + large_mass))
-    return (period_in_years * DAYS_IN_A_YEAR)
+    if separation == 0 * km:
+        return 0 * year
+
+    if large_mass == 0 * kg:
+        return inf * year
+
+    if small_mass == 0 * kg:
+        return 2 * pi * sqrt(separation**3 / large_mass / GRAV_CONSTANT)
+
+    reduced_mass = with_units(
+        (small_mass * large_mass) / (small_mass + large_mass),
+        kg,
+    )
+
+    return 2 * pi * sqrt(separation**3 / reduced_mass / GRAV_CONSTANT)
 
 
 def day_length(planet):
@@ -218,9 +221,7 @@ def day_length(planet):
     eccentricity, whether it is a gas giant or not.
     The length of the day is returned in units of hours.'''
 
-    planetary_mass_in_grams = planet.mass * SOLAR_MASS_IN_GRAMS
-    equatorial_radius_in_cm = planet.radius * CM_PER_KM
-    year_in_hours = planet.orb_period * 24.0
+    year_length = with_units(planet.orb_period, year)
     giant = (planet.type == PlanetType.GAS_GIANT
              or planet.type == PlanetType.SUB_GAS_GIANT
              or planet.type == PlanetType.SUB_SUB_GAS_GIANT)
@@ -234,66 +235,75 @@ def day_length(planet):
     else:
         k2 = 0.33
 
-    base_angular_velocity = sqrt(2.0 * J * (planetary_mass_in_grams) /
-                                 (k2 * (equatorial_radius_in_cm**2)))
+    base_angular_velocity = with_units(
+        sqrt(2.0 * J * (planet.mass) / (k2 * (planet.radius**2))) * rad,
+        rad / s,
+    )
 
     # This next calculation determines how much the planet's rotation is
     # slowed by the presence of the star.
 
-    change_in_angular_velocity = CHANGE_IN_EARTH_ANG_VEL * (
-        planet.density /
-        EARTH_DENSITY) * (equatorial_radius_in_cm / EARTH_RADIUS) * (
-            EARTH_MASS_IN_GRAMS / planetary_mass_in_grams) * (
-                planet.sun.mass_ratio**2.0) * (1.0 / (planet.orbit.a**6.0))
+    # TODO(woursler): Replace with an actual tidal force calculation,
+    # including love numbers and such.
+    change_in_angular_velocity = CHANGE_IN_EARTH_ANG_VEL \
+        * (planet.density / EARTH_DENSITY) \
+        * (planet.radius / EARTH_RADIUS) \
+        * (earth_mass / planet.mass) \
+        * (planet.sun.mass_ratio ** 2) \
+        * (au ** 6 / (planet.orbit.a ** 6))
+
     ang_velocity = base_angular_velocity + \
         (change_in_angular_velocity * planet.sun.age)
 
-    # Now we change from rad/sec to hours/rotation.
-
-    if ang_velocity <= 0.0:
+    if ang_velocity <= 0 * rad / s:
         stopped = True
-        day_in_hours = INCREDIBLY_LARGE_NUMBER
+        day_length = INCREDIBLY_LARGE_NUMBER * hour
 
     else:
-        day_in_hours = RADIANS_PER_ROTATION / (SECONDS_PER_HOUR * ang_velocity)
+        day_length = with_units(
+            turn / ang_velocity,
+            hour
+        )
 
-    if (day_in_hours >= year_in_hours) or stopped:
+    if (day_length >= year_length) or stopped:
+        # TODO(woursler): Determine what phenomenon this models.
         if planet.orbit.e > 0.1:
             spin_resonance_factor = (1.0 - planet.orbit.e) / (1.0 +
                                                               planet.orbit.e)
             planet.resonant_period = True
-            return (spin_resonance_factor * year_in_hours)
+            return (spin_resonance_factor * year_length)
 
         else:
-            return (year_in_hours)
+            return year_length
 
-    return (day_in_hours)
+    return day_length
 
 
 def inclination(orb_radius):
     '''The orbital radius is expected in units of Astronomical Units (AU).
     Inclination is returned in units of degrees. '''
     temp = int((orb_radius**0.2) * about(EARTH_AXIAL_TILT, 0.4))
-    return temp % 360
+    return (temp % 360) * deg
 
 
 def escape_vel(mass, radius):
     '''This function implements the escape velocity calculation.  Note that
     it appears that Fogg's eq.15 is incorrect.
-    The mass is in units of solar mass, radius in kilometers, the
-    velocity returned is in cm/sec. '''
-    mass_in_grams = mass * SOLAR_MASS_IN_GRAMS
-    radius_in_cm = radius * CM_PER_KM
-    return sqrt(2.0 * GRAV_CONSTANT * mass_in_grams / radius_in_cm)
+    TODO(woursler): WTF? How is something this basic in dispute? Why does the radius matter?'''
+    return sqrt(2 * GRAV_CONSTANT * mass / radius)
 
 
 def rms_vel(molecular_weight, exospheric_temp):
     '''This is Fogg's eq.16.  The molecular weight (usually assumed to be N2)
     is used as the basis of the Root Mean Square (RMS) velocity of the
-    molecule or atom.  The velocity returned is in cm/sec.
-    Orbital radius is in A.U.(ie: in units of the earth's orbital radius).'''
-    return sqrt((3.0 * MOLAR_GAS_CONST * exospheric_temp) /
-                molecular_weight) * CM_PER_METER
+    molecule or atom. '''
+
+    molecular_weight = with_units(molecular_weight, gram/mol)
+    exospheric_temp = with_units(exospheric_temp, K)
+    v = sqrt(
+        3 * MOLAR_GAS_CONST * exospheric_temp / molecular_weight,
+    )
+    return with_units(v, m/s)
 
 
 def molecule_limit(mass, equat_radius, exospheric_temp):
@@ -303,25 +313,14 @@ def molecule_limit(mass, equat_radius, exospheric_temp):
     kilometers. '''
     esc_velocity = escape_vel(mass, equat_radius)
 
-    return ((3.0 * MOLAR_GAS_CONST * exospheric_temp) / (pow2(
-        (esc_velocity / GAS_RETENTION_THRESHOLD) / CM_PER_METER)))
+    return (3 * MOLAR_GAS_CONST * exospheric_temp) \
+        / (esc_velocity / GAS_RETENTION_THRESHOLD) ** 2
 
 
 def acceleration(mass, radius):
-    '''This function calculates the surface acceleration of a planet.   The
-    mass is in units of solar masses, radius in terms of km, the
-    acceleration is returned in units of cm/sec2. '''
+    '''This function calculates the surface acceleration of a planet.'''
 
-    return GRAV_CONSTANT * (mass * SOLAR_MASS_IN_GRAMS) / pow2(
-        radius * CM_PER_KM)
-
-
-def gravity(acceleration):
-    '''This function calculates the surface gravity of a planet.  The
-    acceleration is in units of cm/sec2, the gravity is returned in
-    units of Earth gravities. '''
-
-    return acceleration / EARTH_ACCELERATION
+    return GRAV_CONSTANT * mass / radius ** 2
 
 
 def vol_inventory(mass, escape_vel, rms_vel, stellar_mass, zone,
@@ -340,10 +339,8 @@ def vol_inventory(mass, escape_vel, rms_vel, stellar_mass, zone,
         else:
             raise NotImplementedError("orbital zone not initialized correctly")
 
-        earth_units = mass * SUN_MASS_IN_EARTH_MASSES
-        temp1 = (proportion_ * earth_units) / stellar_mass
-        temp2 = about(temp1, 0.2)
-        temp2 = temp1
+        earth_units = dimensionless_with_units(mass, earth_mass)
+        temp2 = (proportion_ * earth_units) / stellar_mass
         if greenhouse_effect or accreted_gas:
             return temp2
         else:
@@ -354,25 +351,34 @@ def vol_inventory(mass, escape_vel, rms_vel, stellar_mass, zone,
 
 
 def pressure(volatile_gas_inventory, equat_radius, gravity):
-    '''This implements Fogg's eq.18.  The pressure returned is in units of
-    millibars (mb).   The gravity is in units of Earth gravities, radius
-    in units of kilometers.
+    '''This implements Fogg's eq.18.
 
     JLB: Aparently this assumed that pressure = 1000mb. I've added a
     fudge factor (EARTH_SURF_PRES_IN_MILLIBARS / 1000.) to correct for that'''
 
-    equat_radius = KM_EARTH_RADIUS / equat_radius
-    return volatile_gas_inventory * gravity * (EARTH_SURF_PRES_IN_MILLIBARS /
-                                               1000.) / (equat_radius**2)
+    # TODO(woursler)
+    print(volatile_gas_inventory)
+
+    equat_radius = EARTH_RADIUS / equat_radius
+    return volatile_gas_inventory \
+        * gravity \
+        / (equat_radius**2)
 
 
 def boiling_point(surf_pressure):
     '''This function returns the boiling point of water in an atmosphere of
     pressure 'surf_pressure', in millibars.  The boiling point is
-    returned in units of Kelvin.  This is Fogg's eq.21. '''
+    returned in units of Kelvin.  This is Fogg's eq.21.
 
-    surface_pressure_in_bars = surf_pressure / MILLIBARS_PER_BAR
-    return 1.0 / ((log(surface_pressure_in_bars) / -5050.5) + (1.0 / 373.0))
+    # TODO(woursler): This would be better as part of a phase diagram.
+    '''
+
+    return 1.0 / (
+        (
+            log(dimensionless_with_units(surf_pressure, bar))
+            / -5050.5
+        ) + (1.0 / 373.0)
+    ) * K
 
 
 def hydro_fraction(volatile_gas_inventory, planet_radius):
@@ -383,7 +389,7 @@ def hydro_fraction(volatile_gas_inventory, planet_radius):
     surface covered by water is 71%, not 75% as Fogg used. '''
 
     temp = (0.71 * volatile_gas_inventory / 1000.0) * \
-        ((KM_EARTH_RADIUS / planet_radius) ** 2)
+        ((EARTH_RADIUS / planet_radius) ** 2)
     if temp >= 1.0:
         return 1.0
     else:
@@ -391,7 +397,7 @@ def hydro_fraction(volatile_gas_inventory, planet_radius):
 
 
 # Constant only used here and not really explained.
-Q2_36 = 0.0698  # 1/Kelvin
+Q2_36 = 0.0698 / K
 
 
 def cloud_fraction(surf_temp, smallest_MW_retained, equat_radius,
@@ -404,13 +410,16 @@ def cloud_fraction(surf_temp, smallest_MW_retained, equat_radius,
     Glass's book "Introduction to Planetary Geology", p.46.
     The 'CLOUD_COVERAGE_FACTOR' is the amount of surface area on Earth
     covered by one Kg. of cloud.'''
+
+    surf_temp = dimensionless_with_units(surf_temp, K)
+
     if smallest_MW_retained > lookup_gas('H2O').weight:
         return 0.0
     else:
         surf_area = 4.0 * pi * (equat_radius**2)
         hydro_mass = hydro_fraction * surf_area * EARTH_WATER_MASS_PER_AREA
         water_vapor_in_kg = (0.00000001 * hydro_mass) * \
-            exp(Q2_36 * (surf_temp - EARTH_AVERAGE_KELVIN))
+            exp(Q2_36 * (surf_temp * K - EARTH_AVERAGE_TEMP))
         fraction = CLOUD_COVERAGE_FACTOR * water_vapor_in_kg / surf_area
         if fraction >= 1.0:
             return 1.0
@@ -426,6 +435,8 @@ def ice_fraction(hydro_fraction, surf_temp):
     line with the fraction of the Earth's surface covered with ice, which
     is approximatly .016 (=1.6%). '''
 
+    surf_temp = dimensionless_with_units(surf_temp, K)
+
     if (surf_temp > 328.0):
         surf_temp = 328.0
     temp = ((328.0 - surf_temp) / 90.0)**5.0
@@ -440,13 +451,13 @@ def ice_fraction(hydro_fraction, surf_temp):
 def eff_temp(ecosphere_radius, orb_radius, albedo):
     '''This is Fogg's eq.19.  The ecosphere radius is given in AU, orbital
     radius in AU, the temperature returned is in Kelvin.'''
-    return sqrt(ecosphere_radius / orb_radius) * pow1_4(
-        (1.0 - albedo) / (1.0 - EARTH_ALBEDO)) * EARTH_EFFECTIVE_TEMP
+    return EARTH_EFFECTIVE_TEMP * sqrt(ecosphere_radius / orb_radius) * (
+        (1.0 - albedo) / (1.0 - EARTH_ALBEDO)) ** (1/4)
 
 
 def est_temp(ecosphere_radius, orb_radius, albedo):
-    return sqrt(ecosphere_radius / orb_radius) * pow1_4(
-        (1.0 - albedo) / (1.0 - EARTH_ALBEDO)) * EARTH_AVERAGE_KELVIN
+    return EARTH_AVERAGE_TEMP * sqrt(ecosphere_radius / orb_radius) * (
+        (1.0 - albedo) / (1.0 - EARTH_ALBEDO)) ** (1/4)
 
 
 def grnhouse(r_ecosphere, orb_radius):
@@ -473,14 +484,15 @@ def green_rise(optical_depth, effective_temp, surf_pressure):
     Earth's Atmosphere" article.  The effective temperature given is in
     units of Kelvin, is the rise in temperature produced by the
     greenhouse effect, is returned.
+    # TODO(woursler): Undo whatever JLB did.
     I tuned this by changing a pow(x,.25) to pow(x,.4) to match Venus - JLB'''
     convection_factor = EARTH_CONVECTION_FACTOR * \
-        pow(surf_pressure / EARTH_SURF_PRES_IN_MILLIBARS, 0.4)
-    rise = (pow1_4(1.0 + 0.75 * optical_depth) - 1.0) * \
+        pow(dimensionless_with_units(surf_pressure, atm), 0.4)
+    rise = ((1.0 + 0.75 * optical_depth) ** (1/4) - 1.0) * \
         effective_temp * convection_factor
 
-    if (rise < 0.0):
-        rise = 0.0
+    if rise < 0 * K:
+        rise = 0 * K
 
     return rise
 
@@ -518,7 +530,7 @@ def planet_albedo(water_fraction, cloud_fraction, ice_fraction, surf_pressure):
 
     cloud_part = cloud_fraction * CLOUD_ALBEDO  # about(...,0.2)
 
-    if surf_pressure == 0.0:
+    if surf_pressure == 0 * atm:
         rock_part = rock_fraction * ROCKY_AIRLESS_ALBEDO  # about(...,0.3)
         ice_part = ice_fraction * AIRLESS_ICE_ALBEDO  # about(...,0.4)
         water_part = 0
@@ -537,108 +549,108 @@ def opacity(molecular_weight, surf_pressure):
     planet.'''
 
     optical_depth = 0.0
-    if (molecular_weight >= 0.0) and (molecular_weight < 10.0):
+    if (molecular_weight >= 0 * kg/mol) and (molecular_weight < 10 * kg/mol):
         optical_depth = optical_depth + 3.0
-    if (molecular_weight >= 10.0) and (molecular_weight < 20.0):
+    if (molecular_weight >= 10 * kg/mol) and (molecular_weight < 20 * kg/mol):
         optical_depth = optical_depth + 2.34
-    if (molecular_weight >= 20.0) and (molecular_weight < 30.0):
+    if (molecular_weight >= 20 * kg/mol) and (molecular_weight < 30 * kg/mol):
         optical_depth = optical_depth + 1.0
-    if (molecular_weight >= 30.0) and (molecular_weight < 45.0):
+    if (molecular_weight >= 30 * kg/mol) and (molecular_weight < 45 * kg/mol):
         optical_depth = optical_depth + 0.15
-    if (molecular_weight >= 45.0) and (molecular_weight < 100.0):
+    if (molecular_weight >= 45 * kg/mol) and (molecular_weight < 100 * kg/mol):
         optical_depth = optical_depth + 0.05
 
-    if surf_pressure >= (70.0 * EARTH_SURF_PRES_IN_MILLIBARS):
+    if surf_pressure >= 70 * atm:
         optical_depth = optical_depth * 8.333
-    else:
-        if surf_pressure >= (50.0 * EARTH_SURF_PRES_IN_MILLIBARS):
-            optical_depth = optical_depth * 6.666
-        else:
-            if surf_pressure >= (30.0 * EARTH_SURF_PRES_IN_MILLIBARS):
-                optical_depth = optical_depth * 3.333
-            else:
-                if surf_pressure >= (10.0 * EARTH_SURF_PRES_IN_MILLIBARS):
-                    optical_depth = optical_depth * 2.0
-                else:
-                    if surf_pressure >= (5.0 * EARTH_SURF_PRES_IN_MILLIBARS):
-                        optical_depth = optical_depth * 1.5
+    elif surf_pressure >= 50 * atm:
+        optical_depth = optical_depth * 6.666
+    elif surf_pressure >= 30 * atm:
+        optical_depth = optical_depth * 3.333
+    elif surf_pressure >= 10 * atm:
+        optical_depth = optical_depth * 2.0
+    elif surf_pressure >= 5 * atm:
+        optical_depth = optical_depth * 1.5
 
     return (optical_depth)
 
 
 def gas_life(gas, planet):
-    ''' calculates the number of years it takes for 1/e of a gas to escape  from a planet's atmosphere.
-    Taken from Dole p. 34. He cites Jeans (1916) & Jones (1923)'''
+    '''Calculates the number of years it takes for 1/e of a gas to escape  from a planet's atmosphere.
+    Taken from Dole p. 34. He cites Jeans (1916) & Jones (1923)
+
+    # TODO(woursler): Properly implement Jeans Escape...
+    https://en.wikipedia.org/wiki/Atmospheric_escape
+    '''
     molecular_weight = gas.weight
+    # TODO(woursler): v_0 != v_rms
     v = rms_vel(molecular_weight, planet.exospheric_temp)
-    g = planet.surf_grav * EARTH_ACCELERATION
-    r = (planet.radius * CM_PER_KM)
+
     try:
-        t = (pow3(v) / (2.0 * pow2(g) * r)) * exp((3.0 * g * r) / pow2(v))
-        years = t / (SECONDS_PER_HOUR * 24.0 * DAYS_IN_A_YEAR)
-        if years > 2.0E10:
-            years = INCREDIBLY_LARGE_NUMBER
+        t = v ** 3 / (2 * planet.radius * planet.surf_grav ** 2) * \
+            exp(3 * planet.radius * planet.surf_grav / v ** 2)
+        if t > 2.0E10 * year:
+            return INCREDIBLY_LARGE_NUMBER * year
+        return t
     except OverflowError:
-        years = INCREDIBLY_LARGE_NUMBER
+        return INCREDIBLY_LARGE_NUMBER * year
 
-    #  long ve = planet.esc_velocity
-    #  long k = 2
-    #  long t2 = ((k * pow3(v) * r) / pow4(ve)) * exp((3.0 * pow2(ve)) / (2.0 * pow2(v)))
-    #  long years2 = t2 / (SECONDS_PER_HOUR * 24.0 * DAYS_IN_A_YEAR)
-
-    #  if VERBOSE:
-    #    fprintf (stderr, "gas_life: %LGs, ratio: %Lf\n",
-    #        years, ve / v)
-
-    return years
 
 @attrs
 class GasWrapper:
     weight = attr()
 
+
 def min_molec_weight(planet):
-    '''TODO(woursler): Not sure this is ported well with the guesses and all. Also it's totally unreadable.'''
+    '''Determines the smallest molecular weight expected to be retained in
+    significant quantities.
+
+    While a fixed solution is possible
+
+    TODO(woursler): Not sure this is ported well with the guesses and all.
+    Also it's totally unreadable.
+
+    # DO NOT COMMIT(woursler): Implement.
+    '''
+
     mass = planet.mass
     radius = planet.radius
     temp = planet.exospheric_temp
-    target = 5.0E9
-
-    guess_1 = molecule_limit(mass, radius, temp)
-    guess_2 = guess_1
-
-    life = gas_life(GasWrapper(weight=guess_1), planet)
-
-    loops = 0
 
     if planet.sun:
         target = planet.sun.age
-    if life > target:
-        while life > target and loops < 25:
-            guess_1 = guess_1 / 2.0
-            life = gas_life(GasWrapper(weight=guess_1), planet)
-            loops += 1
     else:
-        while life < target and loops < 25:
-            guess_2 = guess_2 * 2.0
-            life = gas_life(GasWrapper(weight=guess_2), planet)
-            loops += 1
+        target = 5.0E9 * year
 
+    lower_bound = lookup_gas('H').weight
+
+    # This upper bound may be too small,
+    # but is sufficiently large for most earthlike planets.
+    upper_bound = lookup_gas('N2').weight
+
+    # If the planet can retain free hydrogen, it can retain any gas.
+    if gas_life(GasWrapper(weight=lower_bound), planet) < target:
+        return lower_bound
+
+    # Ensure that upper_bound > mmw while keeping lower_bound < mmw
+    while gas_life(GasWrapper(weight=upper_bound), planet) < target:
+        lower_bound = upper_bound
+        upper_bound = 2 * upper_bound
+
+    # Binary search for the threshold where gas_life(...) == target
     loops = 0
-
-    while (guess_2 - guess_1) > 0.1 and loops < 25:
-        guess_3 = (guess_1 + guess_2) / 2.0
-        life = gas_life(GasWrapper(weight=guess_3), planet)
-
-        if life < target:
-            guess_1 = guess_3
-        else:
-            guess_2 = guess_3
-
+    while loops < 25:
         loops += 1
+        midpoint = (lower_bound + upper_bound) / 2
 
-    life = gas_life(GasWrapper(weight=guess_2), planet)
+        if upper_bound <= lower_bound:
+            break
 
-    return guess_2
+        if gas_life(GasWrapper(weight=midpoint), planet) < target:
+            lower_bound = midpoint
+        else:
+            upper_bound = midpoint
+
+    return midpoint
 
 
 def calculate_surface_temp(planet, first, last_water, last_clouds, last_ice,
@@ -686,12 +698,15 @@ def calculate_surface_temp(planet, first, last_water, last_clouds, last_ice,
                                                      planet.hydrosphere)
     planet.ice_cover = ice_fraction(planet.hydrosphere, planet.surf_temp)
 
-    if planet.greenhouse_effect and (planet.surf_pressure > 0.0):
+    if planet.greenhouse_effect and (planet.surf_pressure > 0 * atm):
         planet.cloud_cover = 1.0
 
-    if (planet.high_temp >= planet.boil_point) and (not first) and (not int(
-            planet.day) == int(
-                planet.orb_period * 24.0)) or planet.resonant_period:
+    if (planet.high_temp >= planet.boil_point) \
+            and (not first) \
+            and (
+                int(dimensionless_with_units(planet.day, hour))
+                != int(dimensionless_with_units(planet.orb_period, hour))) \
+            or planet.resonant_period:
         planet.hydrosphere = 0.0
         boil_off = True
 
@@ -700,7 +715,7 @@ def calculate_surface_temp(planet, first, last_water, last_clouds, last_ice,
         else:
             planet.cloud_cover = 1.0
 
-    if planet.surf_temp < (FREEZING_POINT_OF_WATER - 3.0):
+    if planet.surf_temp + 3*K < FREEZING_POINT_OF_WATER:
         planet.hydrosphere = 0.0
 
     planet.albedo = planet_albedo(planet.hydrosphere, planet.cloud_cover,
@@ -739,8 +754,11 @@ def calculate_surface_temp(planet, first, last_water, last_clouds, last_ice,
 
 
 def iterate_surface_temp(planet):
-    initial_temp = est_temp(planet.sun.r_ecosphere, planet.orbit.a,
-                            planet.albedo)
+    initial_temp = est_temp(
+        planet.sun.r_ecosphere,
+        planet.orbit.a,
+        planet.albedo,
+    )
 
     if VERBOSE:
         print(
@@ -776,7 +794,7 @@ def iterate_surface_temp(planet):
         calculate_surface_temp(planet, False, last_water, last_clouds,
                                last_ice, last_temp, last_albedo)
 
-        if fabs(planet.surf_temp - last_temp) < 0.25:
+        if abs(planet.surf_temp - last_temp) < 0.25 * K:
             break
 
     planet.greenhs_rise = planet.surf_temp - initial_temp
@@ -849,26 +867,38 @@ def soft(v, max, min):
 
 
 def set_temp_range(planet):
-    pressmod = 1 / sqrt(1 + 20 * planet.surf_pressure / 1000.0)
-    ppmod = 1 / sqrt(10 + 5 * planet.surf_pressure / 1000.0)
-    tiltmod = fabs(
-        cos(planet.axial_tilt * pi / 180) * pow(1 + planet.orbit.e, 2))
-    daymod = 1 / (200 / planet.day + 1)
+    # TODO(woursler): PORT THIS
+
+    surf_press = dimensionless_with_units(planet.surf_pressure, bar)
+    surf_temp = dimensionless_with_units(planet.surf_temp, K)
+    day_len = dimensionless_with_units(planet.day, hour)
+
+    pressmod = 1 / sqrt(
+        1 + 20 * surf_press
+    )
+    ppmod = 1 / sqrt(
+        10 + 5 * surf_press
+    )
+
+    tiltmod = abs(
+        cos(planet.axial_tilt) * (1 + planet.orbit.e) ** 2)
+    daymod = 1 / (200 / day_len + 1)
     mh = pow(1 + daymod, pressmod)
     ml = pow(1 - daymod, pressmod)
-    hi = mh * planet.surf_temp
-    lo = ml * planet.surf_temp
+    hi = mh * surf_temp
+    lo = ml * surf_temp
     sh = hi + pow((100 + hi) * tiltmod, sqrt(ppmod))
     wl = lo - pow((150 + lo) * tiltmod, sqrt(ppmod))
-    max = planet.surf_temp + sqrt(planet.surf_temp) * 10
-    min = planet.surf_temp / sqrt(planet.day + 24)
+    max = surf_temp + sqrt(surf_temp) * 10
+    min = surf_temp / \
+        sqrt(day_len + 24)
 
     if lo < min:
         lo = min
     if wl < 0:
         wl = 0
 
-    planet.high_temp = soft(hi, max, min)
-    planet.low_temp = soft(lo, max, min)
-    planet.max_temp = soft(sh, max, min)
-    planet.min_temp = soft(wl, max, min)
+    planet.high_temp = soft(hi, max, min) * K
+    planet.low_temp = soft(lo, max, min) * K
+    planet.max_temp = soft(sh, max, min) * K
+    planet.min_temp = soft(wl, max, min) * K

@@ -4,13 +4,24 @@ from attr import attr
 from attr import attrs
 from constants import B
 from constants import DISK_ECCENTRICITY
-from constants import MILLIBARS_PER_ATM
-from constants import SUN_MASS_IN_EARTH_MASSES
-from constants import SUN_MASS_IN_JUPITER_MASSES
-from constants import SUN_MASS_IN_MOON_MASSES
 from enviroment import PlanetType
 from math import sqrt
 from tabulate import tabulate
+from xatu.core import dimensionless_with_units
+from xatu.core import quantity_formatter
+from xatu.core import quantity_repr
+from xatu.units import K
+from xatu.units import au
+from xatu.units import deg
+from xatu.units import earth_mass
+from xatu.units import jupiter_mass
+from xatu.units import kg
+from xatu.units import km
+from xatu.units import lunar_mass
+from xatu.units import neptune_mass
+from xatu.units import solar_mass
+from xatu.units import year
+from xatu.units import g_force, atm
 
 
 @attrs(repr=False)
@@ -21,6 +32,11 @@ class Star():
     name = attr(default="Unnamed Star")
 
     planets = attr(factory=list)
+
+    @property
+    def mass(self):
+        return self.mass_ratio * solar_mass
+    
 
     @property
     # Approximates the luminosity of the star.
@@ -40,20 +56,20 @@ class Star():
     @property
     # Source: StarGen, TODO Verify against current data.
     def stellar_dust_limit(self):
-        return 200.0 * (self.mass_ratio**0.3333)
+        return 200 * (self.mass_ratio**(1/3)) * au
 
     @property
-    def r_ecosphere(self):  # Source: StarGen, TODO Name? Value?
-        return sqrt(self.luminosity_ratio)
+    def r_ecosphere(self):  # Source: StarGen, TODO Name? Value? Possible habitable zone?
+        return sqrt(self.luminosity_ratio) * au
 
     @property
     def life(self):  # Source: StarGen, TODO Name? Value?
         return 10**10 * (self.mass_ratio / self.luminosity_ratio)
 
     def __repr__(self):
-        return self.name + ": mass = " + str(
-            self.mass_ratio) + " solar mass; age = " + str(
-                self.age) + '\n' + '\n'.join(
+        return self.name + ": mass = " + mass_repr(
+            self.mass) + "; age = " + quantity_repr(
+                self.age, year) + '\n' + '\n'.join(
                     [repr(planet) for planet in self.planets])
 
 
@@ -63,9 +79,9 @@ class StellarSystem:
     planets = attr()
 
 
-@attrs(repr=False)
+@attrs
 class Orbit:
-    a = attr()  # semi-major axis of solar orbit (in AU)
+    a = attr(repr=quantity_formatter(au))  # semi-major axis of solar orbit
     e = attr()  # eccentricity of solar orbit
 
     @property
@@ -76,15 +92,15 @@ class Orbit:
     def apoapsis(self):
         return (1 + self.e) * self.a
 
-    def __repr__(self):
-        return 'a = ' + str(self.a) + ' e = ' + str(self.e)
+
+STAR_MASS = 1 * solar_mass  # TODO(woursler): Use the actual star mass
 
 
 @attrs
 class Planetoid():
     orbit = attr()
-    dust_mass = attr()
-    gas_mass = attr()
+    dust_mass = attr(repr=quantity_formatter(kg))
+    gas_mass = attr(repr=quantity_formatter(kg))
 
     @property
     def mass(self):
@@ -96,20 +112,19 @@ class Planetoid():
         # http://spiff.rit.edu/classes/phys440/lectures/reduced/reduced.html
         # But some sort of 3 body case, see dole.
         # TODO: Understand better?
-        return (self.mass / (1.0 + self.mass))**0.25
+        # TODO(woursler): Actually use the mass of the star?
+        return (self.mass / (STAR_MASS + self.mass))**0.25
 
     @property
     def inner_effect_limit(self):
-        temp = (self.orbit.a * (1.0 - self.orbit.e) * (1.0 - self.mass) /
-                (1.0 + DISK_ECCENTRICITY))
-        if temp < 0:
-            return 0
-        return temp
+        # TODO(woursler): Should extend further in, include dust destabilized
+        # by indirect gravitational effects.
+        return self.orbit.a * (1.0 - self.orbit.e) / (1.0 + DISK_ECCENTRICITY)
 
     @property
     def outer_effect_limit(self):
-        return (self.orbit.a * (1.0 + self.orbit.e) * (1.0 + self.mass) /
-                (1.0 - DISK_ECCENTRICITY))
+        # TODO(woursler): See note on inner_effect_limit
+        return self.orbit.a * (1.0 + self.orbit.e) / (1.0 - DISK_ECCENTRICITY)
 
 
 @attrs
@@ -118,17 +133,25 @@ class Planetesimal(Planetoid):
 
     @property
     def critical_mass(self):
-        perihelion_dist = self.orbit.a * (1.0 - self.orbit.e)
+        perihelion_dist = self.orbit.a * (1 - self.orbit.e)
         temp = perihelion_dist * sqrt(self.disk.star.luminosity_ratio)
-        return B * (temp**-0.75)
+        # TODO(woursler): Understand the basis for this.
+        return B * (dimensionless_with_units(temp, au)**-0.75) * solar_mass
 
 
-def mass_repr(mass):
-    if mass * SUN_MASS_IN_MOON_MASSES <= 50:
-        return str(mass * SUN_MASS_IN_MOON_MASSES) + " M_moon"
-    if mass * SUN_MASS_IN_EARTH_MASSES <= 50:
-        return str(mass * SUN_MASS_IN_EARTH_MASSES) + " M_earth"
-    return str(mass * SUN_MASS_IN_JUPITER_MASSES) + " M_jupiter"
+# TODO(woursler): Migrate to xatu core...
+# quantity_repr(mass, {lunar_mass, earth_mass, jupiter_mass, solar_mass})
+# or even quantity_repr(mass, celestial_mass_units)
+def mass_repr(mass) -> str:
+    if mass <= 50 * lunar_mass:
+        return quantity_repr(mass, lunar_mass)
+    if mass <= 50 * earth_mass:
+        return quantity_repr(mass, earth_mass)
+    if mass <= 15 * neptune_mass:
+        return quantity_repr(mass, neptune_mass)
+    if mass <= 50 * jupiter_mass:
+        return quantity_repr(mass, jupiter_mass)
+    return quantity_repr(mass, solar_mass)
 
 
 @attrs(repr=False)
@@ -141,18 +164,19 @@ class Protoplanet(Planetoid):
 
     @property
     def mass_of_moons(self):
+        if len(self.moons) == 0:
+            return 0 * kg
         return sum([moon.mass for moon in self.moons])
 
     @property
     def critical_mass(self):
-        perihelion_dist = self.orbit.a * (1.0 - self.orbit.e)
+        perihelion_dist = self.orbit.a * (1 - self.orbit.e)
         temp = perihelion_dist * sqrt(self.star.luminosity_ratio)
-        return B * (temp**-0.75)
+        return B * (dimensionless_with_units(temp, au)**-0.75) * solar_mass
 
     def __repr__(self):
-
-        return ("\tMass: " + mass_repr(self.mass) + " = attr() Orbit: " +
-                str(self.orbit.a) + " AU, Moons: " + str(len(self.moons)) +
+        return ("\tMass: " + mass_repr(self.mass) + " Orbit: " +
+                quantity_repr(self.orbit.a, au) + " AU, Moons: " + str(len(self.moons)) +
                 "\n")
 
 
@@ -169,19 +193,22 @@ class Planet():
     # Orbital details.
     orbit = attr()
 
-    axial_tilt = attr()  # units of degrees
-    mass = attr()  # mass (in solar masses)
-    dust_mass = attr()  # mass, ignoring gas
-    gas_mass = attr()  # mass, ignoring dust
+    axial_tilt = attr(repr=quantity_formatter(deg))  # units of degrees
+    mass = attr(repr=quantity_formatter(kg))  # mass (in solar masses)
+    dust_mass = attr(repr=quantity_formatter(kg))  # mass, ignoring gas
+    gas_mass = attr(repr=quantity_formatter(kg))  # mass, ignoring dust
 
     moons = attr(factory=list)
 
     #   ZEROES start here -- TODO(woursler): A bunch of these should be other Zero-like types.
     gas_giant = attr(default=False)  # TRUE if the planet is a gas giant
-    moon_a = attr(default=0)  # semi-major axis of lunar orbit (in AU)
+    # semi-major axis of lunar orbit
+    moon_a = attr(factory=lambda: 0*au, repr=quantity_formatter(au))
     moon_e = attr(default=0)  # eccentricity of lunar orbit
-    core_radius = attr(default=0)  # radius of the rocky core (in km)
-    radius = attr(default=0)  # equatorial radius (in km)
+    # radius of the rocky core
+    core_radius = attr(factory=lambda: 0*km, repr=quantity_formatter(km))
+    # equatorial radius
+    radius = attr(factory=lambda: 0*km, repr=quantity_formatter(km))
     orbit_zone = attr(default=0)  # the 'zone' of the planet
     density = attr(default=0)  # density (in g/cc)
     orb_period = attr(default=0)  # length of the local year (days)
@@ -195,18 +222,26 @@ class Planet():
     volatile_gas_inventory = attr(default=0)
     surf_pressure = attr(default=0)  # units of millibars (mb)
     greenhouse_effect = attr(default=0)  # runaway greenhouse effect?
-    boil_po = attr(default=0)  # the boiling po of water (Kelvin)
+    # the boiling po of water (Kelvin)
+    boil_po = attr(factory=lambda: 0*K, repr=quantity_formatter(K))
     albedo = attr(default=0)  # albedo of the planet
-    exospheric_temp = attr(default=0)  # units of degrees Kelvin
-    estimated_temp = attr(default=0)  # quick non-iterative estimate (K)
+    exospheric_temp = attr(factory=lambda: 0*K, repr=quantity_formatter(K))
+    # quick non-iterative estimate
+    estimated_temp = attr(factory=lambda: 0*K, repr=quantity_formatter(K))
     # for terrestrial moons and the like
-    estimated_terr_temp = attr(default=0)
-    surf_temp = attr(default=0)  # surface temperature in Kelvin
-    greenhs_rise = attr(default=0)  # Temperature rise due to greenhouse
-    high_temp = attr(default=0)  # Day-time temperature
-    low_temp = attr(default=0)  # Night-time temperature
-    max_temp = attr(default=0)  # Summer/Day
-    min_temp = attr(default=0)  # Wer/Night
+    estimated_terr_temp = attr(factory=lambda: 0*K, repr=quantity_formatter(K))
+    # surface temperature in Kelvin
+    surf_temp = attr(factory=lambda: 0*K, repr=quantity_formatter(K))
+    # Temperature rise due to greenhouse
+    greenhs_rise = attr(factory=lambda: 0*K, repr=quantity_formatter(K))
+    # Day-time temperature
+    high_temp = attr(factory=lambda: 0*K, repr=quantity_formatter(K))
+    # Night-time temperature
+    low_temp = attr(factory=lambda: 0*K, repr=quantity_formatter(K))
+    max_temp = attr(factory=lambda: 0*K,
+                    repr=quantity_formatter(K))  # Summer/Day
+    min_temp = attr(factory=lambda: 0*K,
+                    repr=quantity_formatter(K))  # Winter/Night
     hydrosphere = attr(default=0)  # fraction of surface covered
     cloud_cover = attr(default=0)  # fraction of surface covered
     ice_cover = attr(default=0)  # fraction of surface covered
@@ -221,17 +256,17 @@ class Planet():
             atmosphere_string = "No Atmosphere"
         else:
             atmosphere_string = tabulate([[gas.symbol,
-                                           str(amount) + ' mb']
+                                           str(amount)]
                                           for gas, amount in self.atmosphere])
         return tabulate([
             ['Type', self.type],
             ['Mass', mass_repr(self.mass)],
-            ['Radius', str(self.radius) + " km"],
+            ['Radius', quantity_repr(self.radius, km)],
             ['Orbit', self.orbit],
-            ['Surface gravity', str(self.surf_grav) + ' g'],
+            ['Surface gravity', quantity_repr(self.surf_grav, g_force)],
             [
                 'Surface pressure',
-                str(self.surf_pressure / MILLIBARS_PER_ATM) + ' atm'
+                quantity_repr(self.surf_pressure, atm)
             ],
             ['Atmosphere', atmosphere_string],
             [
