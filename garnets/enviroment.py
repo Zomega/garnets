@@ -1,3 +1,9 @@
+from enum import Enum
+from math import exp
+from math import inf as INCREDIBLY_LARGE_NUMBER
+from math import log
+from math import pi
+
 from attr import attr
 from attr import attrs
 from chemtable import lookup_gas
@@ -12,7 +18,6 @@ from constants import EARTH_CONVECTION_FACTOR
 from constants import EARTH_DENSITY
 from constants import EARTH_EFFECTIVE_TEMP
 from constants import EARTH_RADIUS
-from constants import EARTH_SURF_PRES
 from constants import EARTH_WATER_MASS_PER_AREA
 from constants import FREEZING_POINT_OF_WATER
 from constants import GAS_RETENTION_THRESHOLD
@@ -25,13 +30,7 @@ from constants import MOLAR_GAS_CONST
 from constants import ROCKY_AIRLESS_ALBEDO
 from constants import ROCKY_ALBEDO
 from constants import WATER_ALBEDO
-from enum import Enum
-from math import exp
-from math import inf as INCREDIBLY_LARGE_NUMBER
-from math import log
-from math import pi
 from tabulate import tabulate
-from util import about
 from xatu.core import dimensionless_with_units
 from xatu.core import quantity_repr
 from xatu.core import with_units
@@ -42,10 +41,8 @@ from xatu.units import atm
 from xatu.units import au
 from xatu.units import bar
 from xatu.units import cm
-from xatu.units import dalton
 from xatu.units import deg
 from xatu.units import earth_mass
-from xatu.units import g_force
 from xatu.units import gram
 from xatu.units import hour
 from xatu.units import kg
@@ -83,7 +80,7 @@ class PlanetType(Enum):
     ICE = 9
     ASTERIODS = 10
     # TODO(woursler): Don't know what this means... maybe tidally locked?
-    ONE_FACE = 11
+    TIDALLY_LOCKED = 11
 
 
 class Zone(Enum):
@@ -105,7 +102,6 @@ def orb_zone(luminosity, orb_radius):
 
 
 def volume_radius(mass, density):
-    print(mass, density)
     volume = mass / density
     return (volume / ((4/3) * pi))**(1/3)
 
@@ -282,7 +278,8 @@ def day_length(planet):
 def inclination(orb_radius):
     '''The orbital radius is expected in units of Astronomical Units (AU).
     Inclination is returned in units of degrees. '''
-    temp = int((orb_radius**0.2) * about(EARTH_AXIAL_TILT, 0.4))
+    temp = int((orb_radius**0.2) *
+               random.uniform(EARTH_AXIAL_TILT - 0.4, EARTH_AXIAL_TILT + 0.4))
     return (temp % 360) * deg
 
 
@@ -351,10 +348,7 @@ def vol_inventory(mass, escape_vel, rms_vel, stellar_mass, zone,
 
 
 def pressure(volatile_gas_inventory, equat_radius, gravity):
-    '''This implements Fogg's eq.18.
-
-    JLB: Aparently this assumed that pressure = 1000mb. I've added a
-    fudge factor (EARTH_SURF_PRES_IN_MILLIBARS / 1000.) to correct for that'''
+    '''This implements Fogg's eq.18.'''
 
     # TODO(woursler)
     print(volatile_gas_inventory)
@@ -710,7 +704,7 @@ def calculate_surface_temp(planet, first, last_water, last_clouds, last_ice,
         planet.hydrosphere = 0.0
         boil_off = True
 
-        if planet.molec_weight > WATER_VAPOR:
+        if planet.molec_weight > lookup_gas('H2O').weight:
             planet.cloud_cover = 0.0
         else:
             planet.cloud_cover = 1.0
@@ -740,10 +734,10 @@ def calculate_surface_temp(planet, first, last_water, last_clouds, last_ice,
 
     if VERBOSE:
         print("calculate_surface_temp readout\n" + tabulate([
-            ["AU", planet.orbit.a],
-            ["Surface Temp C", planet.surf_temp - FREEZING_POINT_OF_WATER],
-            ["Effective Temp C", effective_temp - FREEZING_POINT_OF_WATER],
-            ["Greenhouse Temp", greenhouse_temp],
+            ["Orbital Radius", quantity_repr(planet.orbit.a, au)],
+            ["Surface Temp", quantity_repr(planet.surf_temp, K)],
+            ["Effective Temp", quantity_repr(effective_temp, K)],
+            ["Greenhouse Temp", quantity_repr(greenhouse_temp, K)],
             ["Water Cover", planet.hydrosphere],
             ["water_raw", water_raw],
             ["Cloud Cover", planet.cloud_cover],
@@ -763,9 +757,9 @@ def iterate_surface_temp(planet):
     if VERBOSE:
         print(
             tabulate([
-                ["Initial temp", initial_temp],
-                ["Solar Ecosphere", planet.sun.r_ecosphere],
-                ["AU", planet.orbit.a],
+                ["Initial temp", quantity_repr(initial_temp, K)],
+                ["Solar Ecosphere", quantity_repr(planet.sun.r_ecosphere, au)],
+                ["Orbital Radius", quantity_repr(planet.orbit.a, au)],
                 ["Albedo", planet.albedo],
             ]))
 
@@ -775,10 +769,10 @@ def iterate_surface_temp(planet):
         n_life = gas_life(lookup_gas('N'), planet)
 
         print('Gas lifetimes:\n' + tabulate([
-            ['H2', h2_life],
-            ['H2O', h2o_life],
-            ['N', n_life],
-            ['N2', n2_life],
+            ['H2', quantity_repr(h2_life, year)],
+            ['H2O', quantity_repr(h2o_life, year)],
+            ['N', quantity_repr(n_life, year)],
+            ['N2', quantity_repr(n2_life, year)],
         ]))
 
     calculate_surface_temp(planet, True, 0, 0, 0, 0, 0)

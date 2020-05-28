@@ -1,0 +1,99 @@
+<?xml version='1.0' standalone='no'?>
+<!DOCTYPE svg PUBLIC '-//W3C//DTD SVG 1.1//EN' 
+					   'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'>
+<svg width='100%%' height='100%%' version='1.1'
+      xmlns='http://www.w3.org/2000/svg'
+      viewBox='-{{margin}} -{{margin}} {{max_x + 2 * margin}} {{max_y + 2 * margin}}'>
+
+ 	<title>{{star.name}}</title>
+ 	<desc>Created by: {{progname}} - {{progversion}}</desc>
+ 	<g>
+ 		<line
+			x1='{{min_log | log_au_distance}}'
+			y1='{{max_y - margin}}'
+			x2='{{max_log | log_au_distance}}'
+			y2='{{max_y - margin}}'
+			stroke='black'
+			stroke-width='1' />
+		{% for x in range(min_log, max_log + 1) %}
+		<line
+			x1='{{x | log_au_distance}}'
+			y1='{{max_y - margin - 10}}'
+			x2='{{x | log_au_distance}}'
+			y2='{{max_y - margin + 10}}'
+			stroke='black'
+			stroke-width='1' />
+		{% if not loop.last %}<g>
+			{% for dx in log_sub_ticks %}
+			<line
+				x1='{{(x + dx) | log_au_distance}}'
+				y1='{{max_y - margin - 5}}'
+				x2='{{(x + dx) | log_au_distance}}'
+				y2='{{max_y - margin + 5}}'
+				stroke='black'
+				stroke-width='1' />
+			{% endfor %}
+		</g>{% endif %}
+		<text
+			x='{{x | log_au_distance}}'
+			y='{{max_y}}'
+			font-family='Arial'
+			font-size='10'
+			font-style='normal'
+			font-weight='normal'
+			fill='black'
+			text-anchor='{% if loop.first %}start{% elif loop.last %}end{% else %}middle{% endif %}'>
+			{{10 ** x}} AU
+		</text>
+		{% endfor %}
+	</g>
+	<g>
+		<line
+			x1='{{star.r_ecosphere | orbital_distance}}'
+			y1='{{max_y - margin - 5}}'
+			x2='{{star.r_ecosphere | orbital_distance}}'
+			y2='{{max_y - margin + 5}}'
+			stroke='blue'
+			stroke-width='1' />
+		<line
+			x1='{{star.min_r_ecosphere | orbital_distance}}'
+			y1='{{max_y - margin}}'
+			x2='{{star.max_r_ecosphere | orbital_distance}}'
+			y2='{{max_y - margin}}'
+			stroke='#66c'
+			stroke-width='10'
+			stroke-opacity='0.5' />
+	</g>
+	<g>
+		{% for planet in star.planets %}
+		<g>
+			<circle
+				cx='{{planet.orbit.a | orbital_distance}}'
+				cy='30'
+				r='{{planet.mass | planet_radius}}'
+				fill='none'
+				stroke='black'
+				stroke-width='1' />
+			<line
+				x1='{{planet.orbit.periapsis | orbital_distance}}'
+				y1='{{max_y - margin - 15}}'
+				x2='{{planet.orbit.apoapsis | orbital_distance}}'
+				y2='{{max_y - margin - 15}}'
+				stroke='black'
+				stroke-width='8'
+				stroke-opacity='0.3'/>
+			<text
+				x='{{planet.orbit.a | orbital_distance}}'
+				y='{{max_y - 2*margin}}'
+				font-family='Arial'
+				font-size='10'
+				font-style='normal'
+				font-weight='normal'
+				fill='black'
+				text-anchor='middle'>
+				{{planet.mass | mass_repr}}
+			</text>
+		</g>
+		{% endfor %}
+	</g>
+</svg>

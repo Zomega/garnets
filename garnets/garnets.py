@@ -1,8 +1,18 @@
 import logging
+import math
 import random
 
+from math import exp
+from math import inf as INCREDIBLY_LARGE_NUMBER
+from math import log
+from pathlib import Path
+
+from jinja2 import Environment
+from jinja2 import FileSystemLoader
+from jinja2 import select_autoescape
+
 from accrete import CircumstellarDisk
-from chemtable import gases
+from chemtable import GASES
 from chemtable import lookup_gas
 from constants import ASTEROID_MASS_LIMIT
 from constants import EARTH_ALBEDO
@@ -27,14 +37,10 @@ from enviroment import kothari_radius
 from enviroment import min_molec_weight
 from enviroment import orb_zone
 from enviroment import period
-from enviroment import pressure
 from enviroment import rms_vel
 from enviroment import vol_inventory
 from enviroment import volume_density
 from enviroment import volume_radius
-from math import exp
-from math import inf as INCREDIBLY_LARGE_NUMBER
-from math import log
 from stellar_system import Orbit
 from stellar_system import Planet
 from stellar_system import Planetesimal
@@ -42,12 +48,8 @@ from stellar_system import Protomoon
 from stellar_system import Protoplanet
 from stellar_system import Star
 from stellar_system import mass_repr
-from util import about
-from util import random_eccentricity
-from util import random_number
 from xatu.core import dimensionless_with_units
 from xatu.core import quantity_repr
-from xatu.core import with_units
 from xatu.math import sqrt
 from xatu.units import K
 from xatu.units import atm
@@ -61,9 +63,6 @@ from xatu.units import km
 from xatu.units import m
 from xatu.units import millibar
 from xatu.units import year
-
-import xatu
-xatu.core.ENABLE_QUANTITY_REPR = True
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -253,72 +252,72 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
 def calculate_gases(star, planet, planet_id):
     if planet.surf_pressure > 0 * atm:
 
-        amount = [0 for _ in range(len(gases))]
+        amount = [0 for _ in range(len(GASES))]
         totamount = 0
         pressure = dimensionless_with_units(planet.surf_pressure, bar)
         n = 0
 
-        for i in range(len(gases)):
+        for i in range(len(GASES)):
 
             # TODO(woursler): WTH is this?
-            yp = gases[i].boil / \
+            yp = GASES[i].boil / \
                 (373. * ((log((pressure) + 0.001) / -5050.5) + (1.0 / 373.)))
 
             if ((yp >= 0*K and yp < planet.low_temp)
-                    and (gases[i].weight >= planet.molec_weight)):
+                    and (GASES[i].weight >= planet.molec_weight)):
 
-                vrms = rms_vel(gases[i].weight, planet.exospheric_temp)
+                vrms = rms_vel(GASES[i].weight, planet.exospheric_temp)
                 pvrms = pow(1 / (1 + vrms / planet.esc_velocity),
                             star.age / 1e9 / year)
-                abund = gases[i].abunds  # gases[i].abunde
+                abund = GASES[i].abunds  # GASES[i].abunde
                 react = 1.0
                 fract = 1.0
                 pres2 = 1.0
 
                 # TODO(woursler): This needs to go in the chemtable somehow.
 
-                if gases[i].symbol == "Ar":
+                if GASES[i].symbol == "Ar":
                     react = .15 * star.age / 4e9 / year
 
-                elif gases[i].symbol == "He":
+                elif GASES[i].symbol == "He":
 
                     abund = abund * (0.001 + (planet.gas_mass / planet.mass))
                     pres2 = (0.75 + pressure)
-                    react = pow(1 / (1 + gases[i].reactivity),
+                    react = pow(1 / (1 + GASES[i].reactivity),
                                 star.age / 2e9 / year * pres2)
 
                 elif (
-                        gases[i].symbol == "O" or gases[i].symbol == "O2"
+                        GASES[i].symbol == "O" or GASES[i].symbol == "O2"
                 ) and star.age > 2e9 * year and planet.surf_temp > 270 * K and planet.surf_temp < 400 * K:
                     pres2 = (0.89 + pressure / 4)
-                    react = pow(1 / (1 + gases[i].reactivity),
+                    react = pow(1 / (1 + GASES[i].reactivity),
                                 pow(star.age / 2e9 / year, 0.25) * pres2)
 
-                elif gases[
+                elif GASES[
                         i].symbol == "CO2" and star.age > 2e9 * year and planet.surf_temp > 270 * K and planet.surf_temp < 400 * K:
                     pres2 = (0.75 + pressure)
-                    react = pow(1 / (1 + gases[i].reactivity),
+                    react = pow(1 / (1 + GASES[i].reactivity),
                                 pow(star.age / 2e9 / year, 0.5) * pres2)
                     react *= 1.5
 
                 else:
                     pres2 = 0.75 + pressure
-                    react = pow(1 / (1 + gases[i].reactivity),
+                    react = pow(1 / (1 + GASES[i].reactivity),
                                 star.age / 2e9 / year * pres2)
 
-                fract = (1 - (planet.molec_weight / gases[i].weight))
+                fract = (1 - (planet.molec_weight / GASES[i].weight))
 
                 amount[i] = abund * pvrms * react * fract
                 '''if ((flag_verbose & 0x4000) and
-                    (strcmp(gases[i].symbol, "O") == 0 or
-                     strcmp(gases[i].symbol, "N") == 0 or
-                     strcmp(gases[i].symbol, "Ar") == 0 or
-                     strcmp(gases[i].symbol, "He") == 0 or
-                     strcmp(gases[i].symbol, "CO2") == 0))
+                    (strcmp(GASES[i].symbol, "O") == 0 or
+                     strcmp(GASES[i].symbol, "N") == 0 or
+                     strcmp(GASES[i].symbol, "Ar") == 0 or
+                     strcmp(GASES[i].symbol, "He") == 0 or
+                     strcmp(GASES[i].symbol, "CO2") == 0))
 
                     fprintf (stderr, "%-5.2Lf %-3.3s, %-5.2Lf = a %-5.2Lf * p %-5.2Lf * r %-5.2Lf * p2 %-5.2Lf * f %-5.2Lf\t(%.3Lf%%)\n",
                               planet.mass * SUN_MASS_IN_EARTH_MASSES,
-                              gases[i].symbol,
+                              GASES[i].symbol,
                               amount[i],
                               abund,
                               pvrms,
@@ -340,13 +339,13 @@ def calculate_gases(star, planet, planet_id):
             planet.gases = n
             planet.atmosphere = []
 
-            for i in range(len(gases)):
+            for i in range(len(GASES)):
 
                 if amount[i] > 0.0:
 
                     planet.atmosphere.append(
                         (
-                            gases[i],
+                            GASES[i],
                             planet.surf_pressure * amount[i] / totamount,
                         )
                     )
@@ -356,7 +355,7 @@ def calculate_gases(star, planet, planet_id):
                         if ((planet.atmosphere[n].num == AN_O) and
                             inspired_partial_pressure (planet.surf_pressure,
                                                        planet.atmosphere[n].surf_pressure)
-                            > gases[i].max_ipp)
+                            > GASES[i].max_ipp)
 
                             fprintf (stderr, "%s\t Poisoned by O2\n",
                                      planet_id)'''
@@ -504,7 +503,7 @@ def generate_planet(protoplanet,
 
         planet.surf_temp = INCREDIBLY_LARGE_NUMBER * K
         planet.greenhs_rise = 0
-        planet.albedo = about(GAS_GIANT_ALBEDO, 0.1)
+        planet.albedo = random.uniform(GAS_GIANT_ALBEDO - 0.1, GAS_GIANT_ALBEDO + 0.1)
         planet.hydrosphere = 1.0
         planet.cloud_cover = 1.0
         planet.ice_cover = 0.0
@@ -596,7 +595,7 @@ def generate_planet(protoplanet,
             if (int(dimensionless_with_units(planet.day, hour))
                     == int(dimensionless_with_units(planet.orb_period, hour))) \
                     or planet.resonant_period:
-                planet.type = PlanetType.ONE_FACE
+                planet.type = PlanetType.TIDALLY_LOCKED
             elif (planet.hydrosphere >= 0.95):
                 planet.type = PlanetType.WATER  # >95% water
             elif (planet.ice_cover >= 0.95):
@@ -649,11 +648,11 @@ def generate_planet(protoplanet,
                 hill_sphere_r = hill_sphere(planet, star)
 
                 if roche_limit_r * 1.5 < hill_sphere_r / 2:
-                    moon_a = random_number(
+                    moon_a = random.uniform(
                         roche_limit_r * 1.5,
                         hill_sphere_r / 2,
                     )
-                    moon_e = random_eccentricity()
+                    moon_e = random.uniform(0, 0.2)
                     moon.orbit = Orbit(a=moon_a, e=moon_e)
 
                 else:
@@ -700,6 +699,70 @@ def generate_planet(protoplanet,
 ###
 # Smoke Test
 ###
+
+JINJA2_ENVIROMENT = Environment(
+    loader=FileSystemLoader(
+        str(Path(__file__).parent / Path('templates'))
+    ),
+    autoescape=select_autoescape(['html', 'xml', 'svg']),
+)
+
 if __name__ == '__main__':
-    random.seed('earth')
-    print(generate_stellar_system(random_star()))
+    #random.seed('earth2')
+    system = generate_stellar_system(random_star())
+
+    print(system)
+
+    # Output SVG TODO(woursler): Configure as flags?
+
+    max_x = 1500
+    max_y = 120
+    margin = 20
+    inner_edge = system.innermost_planet.orbit.a * \
+        (1 - system.innermost_planet.orbit.e)
+    outer_edge = system.outermost_planet.orbit.a * \
+        (1 + system.outermost_planet.orbit.e)
+    min_log = math.floor(math.log10(dimensionless_with_units(inner_edge, au)))
+    max_log = math.ceil(math.log10(dimensionless_with_units(outer_edge, au)))
+
+    mult = max_x / (max_log - min_log)
+    offset = -mult * (1.0 + min_log)
+    em_scale = 5
+
+    def transform_planet_radius(mass):
+        return em_scale * dimensionless_with_units(mass, earth_mass) ** (1/3)
+
+    def transform_orbital_distance(distance):
+        return (offset+mult) + (
+            math.log10(
+                dimensionless_with_units(distance, au)
+            ) * mult
+        )
+
+    def transform_log_au_distance(log_au_distance):
+        return (offset+mult) + (log_au_distance*mult)
+
+    JINJA2_ENVIROMENT.filters['planet_radius'] = transform_planet_radius
+    JINJA2_ENVIROMENT.filters['orbital_distance'] = transform_orbital_distance
+    JINJA2_ENVIROMENT.filters['log_au_distance'] = transform_log_au_distance
+    JINJA2_ENVIROMENT.filters['mass_repr'] = mass_repr
+
+    svg_path = Path(__file__).resolve().parents[2] / Path('test.svg')
+    svg_template = JINJA2_ENVIROMENT.get_template('system.svg')
+
+    svg_path.write_text(svg_template.render(**{
+        'star': system,
+        'progname': 'garnets',
+        'progversion': '0.0.1',
+        'max_x': max_x,
+        'max_y': max_y,
+        'margin': margin,
+        'min_log': min_log,
+        'max_log': max_log,
+        'log_sub_ticks': list(
+            map(
+                lambda dx: math.log10(dx),
+                range(2, 9 + 1)
+            )
+        )
+    }))

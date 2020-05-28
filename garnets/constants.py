@@ -1,17 +1,13 @@
-from math import pi
+"""Physical and inferred constants related to stellar system formation."""
 
 from xatu.units import K
 from xatu.units import cm
-from xatu.units import cm
 from xatu.units import deg
-from xatu.units import dyne
 from xatu.units import earth_mass
 from xatu.units import g
-from xatu.units import jupiter_mass
 from xatu.units import kg
 from xatu.units import km
 from xatu.units import m
-from xatu.units import millibar
 from xatu.units import mol
 from xatu.units import rad
 from xatu.units import s
@@ -53,9 +49,8 @@ EARTH_EFFECTIVE_TEMP = 250.0 * K
 EARTH_WATER_MASS_PER_AREA = 3.83E15 * g / km**2
 EARTH_CONVECTION_FACTOR = 0.43  # from Hart, eq.20
 FREEZING_POINT_OF_WATER = 273.15 * K  # TODO(woursler): USE GAS?
-EARTH_AVERAGE_TEMP= 287.15 * K
+EARTH_AVERAGE_TEMP = 287.15 * K
 EARTH_ALBEDO = 0.3  # was .33 for a while
-EARTH_SURF_PRES = 1013.25 * millibar
 
 # --- BELOW THIS LINE IS STUFF RELATED TO ATMOSPHERIC CHEMISTRY
 

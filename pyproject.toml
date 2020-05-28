@@ -1,0 +1,24 @@
+[tool.tidypy]
+exclude = [
+    '.mypy_cache/.*'
+]
+
+[tool.tidypy.pydocstyle]
+disabled = [
+    'D105',
+    'D203',
+    'D213'
+]
+
+[tool.tidypy.pylint]
+disabled = [
+    'len-as-condition',
+    'fixme',
+    'not-an-iterable'
+]
+
+[tool.tidypy.pyroma]
+disabled = [
+	'ValidREST',
+	'PythonVersion'
+]

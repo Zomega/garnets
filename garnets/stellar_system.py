@@ -1,19 +1,20 @@
-import attr
+from math import sqrt
+from tabulate import tabulate
 
 from attr import attr
 from attr import attrs
 from constants import B
 from constants import DISK_ECCENTRICITY
 from enviroment import PlanetType
-from math import sqrt
-from tabulate import tabulate
 from xatu.core import dimensionless_with_units
 from xatu.core import quantity_formatter
 from xatu.core import quantity_repr
 from xatu.units import K
+from xatu.units import atm
 from xatu.units import au
 from xatu.units import deg
 from xatu.units import earth_mass
+from xatu.units import g_force
 from xatu.units import jupiter_mass
 from xatu.units import kg
 from xatu.units import km
@@ -21,8 +22,8 @@ from xatu.units import lunar_mass
 from xatu.units import neptune_mass
 from xatu.units import solar_mass
 from xatu.units import year
-from xatu.units import g_force, atm
 
+# pylint: disable=no-member, too-few-public-methods
 
 @attrs(repr=False)
 class Star():
@@ -63,8 +64,26 @@ class Star():
         return sqrt(self.luminosity_ratio) * au
 
     @property
+    def min_r_ecosphere(self):
+        return sqrt(self.luminosity_ratio / 1.51) * au
+
+    @property
+    def max_r_ecosphere(self):
+        return sqrt(self.luminosity_ratio / 0.48) * au
+
+    @property
     def life(self):  # Source: StarGen, TODO Name? Value?
         return 10**10 * (self.mass_ratio / self.luminosity_ratio)
+
+    @property
+    def innermost_planet(self):
+        return min(self.planets, key=lambda p: p.orbit.a)
+
+    @property
+    def outermost_planet(self):
+        return max(self.planets, key=lambda p: p.orbit.a)
+    
+    
 
     def __repr__(self):
         return self.name + ": mass = " + mass_repr(
@@ -144,13 +163,13 @@ class Planetesimal(Planetoid):
 # or even quantity_repr(mass, celestial_mass_units)
 def mass_repr(mass) -> str:
     if mass <= 50 * lunar_mass:
-        return quantity_repr(mass, lunar_mass)
+        return quantity_repr(mass, lunar_mass, ndigits = 2)
     if mass <= 50 * earth_mass:
-        return quantity_repr(mass, earth_mass)
+        return quantity_repr(mass, earth_mass, ndigits = 2)
     if mass <= 15 * neptune_mass:
-        return quantity_repr(mass, neptune_mass)
+        return quantity_repr(mass, neptune_mass, ndigits = 2)
     if mass <= 50 * jupiter_mass:
-        return quantity_repr(mass, jupiter_mass)
+        return quantity_repr(mass, jupiter_mass, ndigits = 2)
     return quantity_repr(mass, solar_mass)
 
 
@@ -256,9 +275,10 @@ class Planet():
             atmosphere_string = "No Atmosphere"
         else:
             atmosphere_string = tabulate([[gas.symbol,
-                                           str(amount)]
+                                           quantity_repr(amount, atm)]
                                           for gas, amount in self.atmosphere])
-        return tabulate([
+
+        repr_table = [
             ['Type', self.type],
             ['Mass', mass_repr(self.mass)],
             ['Radius', quantity_repr(self.radius, km)],
@@ -269,8 +289,7 @@ class Planet():
                 quantity_repr(self.surf_pressure, atm)
             ],
             ['Atmosphere', atmosphere_string],
-            [
-                'Moons', '\n'.join(repr(moon) for moon in self.moons)
-                if len(self.moons) > 0 else 'No Moons'
-            ],
-        ])
+        ]
+        if len(self.moons) > 0:
+            repr_table.append(['Moons', '\n'.join(repr(moon) for moon in self.moons)])
+        return tabulate(repr_table)

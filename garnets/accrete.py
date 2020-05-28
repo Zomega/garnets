@@ -1,19 +1,26 @@
+"""
+Classes and utilities to simulate accretion in the circumstellar disk.
+"""
+
+# pylint: disable=no-member, too-few-public-methods
+
+from math import exp
+from math import pi
+from math import sqrt
+from typing import List
+
 from attr import attr
 from attr import attrs
 from constants import ALPHA
 from constants import DUST_DENSITY_COEFF
 from constants import GAS_DUST_RATIO
-from math import exp
-from math import pi
-from math import sqrt
-from xatu.core import quantity_formatter
-from xatu.core import quantity_repr
+from stellar_system import mass_repr
 from xatu.core import dimensionless_with_units
+from xatu.core import quantity_formatter
 from xatu.units import au
 from xatu.units import kg
-from xatu.units import m, solar_mass
-from typing import List
-from stellar_system import mass_repr
+from xatu.units import m
+from xatu.units import solar_mass
 
 
 @attrs
@@ -58,8 +65,9 @@ class CircumstellarDisk:
             * exp(
                 -ALPHA * (dimensionless_with_units(a, au)**(1/3))
             )
+            # TODO(woursler): Add to DUST_DENSITY_COEFF
             * solar_mass / au ** 3
-        )  # TODO(woursler): Figure out the implicit units, include in DUST_DENSITY_COEFF
+        )
 
     @property
     def dust_left(self):
@@ -115,7 +123,7 @@ class CircumstellarDisk:
                     temp1 = 0 * m
 
                 temp2 = lane.inner - planetoid.inner_effect_limit
-                if temp2 < 0 *m:
+                if temp2 < 0 * m:
                     temp2 = 0 * m
 
                 temp = 4 * pi * (planetoid.orbit.a ** 2) * planetoid.reduced_mass * \
