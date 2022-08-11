@@ -24,6 +24,8 @@ class Star():
     # Approximates the luminosity of the star.
     # TODO: express only as ratio?
     # Source: http://en.wikipedia.org/wiki/Mass%E2%80%93luminosity_relation
+
+    # SM - this can and should be udpated to a function. Also as function of time, luminosity increases?
     def luminosity_ratio(self):
         if (self.mass_ratio < .43):
             return .23 * (self.mass_ratio ** 2.3)
@@ -199,6 +201,7 @@ class Planet():
     albedo = attrib(default=0)    # albedo of the planet
     exospheric_temp = attrib(default=0)  # units of degrees Kelvin
     estimated_temp = attrib(default=0)     # quick non-iterative estimate (K)
+    
     # for terrestrial moons and the like
     estimated_terr_temp = attrib(default=0)
     surf_temp = attrib(default=0)   # surface temperature in Kelvin

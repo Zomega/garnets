@@ -1,3 +1,4 @@
+import numpy as np
 from enum import Enum
 from math import sqrt, pi, cos, fabs, exp, log
 from constants import SOLAR_MASS_IN_GRAMS, SUN_MASS_IN_EARTH_MASSES
@@ -140,7 +141,7 @@ def kothari_radius(mass, giant, zone):
     temp2 = A2_20 * (atomic_weight ** (4.0 / 3.0)) * \
         (SOLAR_MASS_IN_GRAMS ** (2.0 / 3.0))
     temp2 = temp2 * (mass ** (2.0 / 3.0))
-    temp2 = temp2 / (A1_20 * (atomic_num ** 2))
+    temp2 = temp2 / (A1_20 * (atomic_num ** 2.0))   #Changed by the Seans, 2/23 to float 2.0
     temp2 = 1.0 + temp2
     temp = temp / temp2
     temp = (temp * (mass ** (1.0 / 3.0))) / CM_PER_KM
@@ -379,7 +380,7 @@ def cloud_fraction(surf_temp, smallest_MW_retained, equat_radius, hydro_fraction
         surf_area = 4.0 * pi * (equat_radius ** 2)
         hydro_mass = hydro_fraction * surf_area * EARTH_WATER_MASS_PER_AREA
         water_vapor_in_kg = (0.00000001 * hydro_mass) * \
-            exp(Q2_36 * (surf_temp - EARTH_AVERAGE_KELVIN))
+            np.exp(Q2_36 * (surf_temp - EARTH_AVERAGE_KELVIN))
         fraction = CLOUD_COVERAGE_FACTOR * water_vapor_in_kg / surf_area
         if fraction >= 1.0:
             return 1.0

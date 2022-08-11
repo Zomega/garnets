@@ -16,14 +16,15 @@ class CircumstellarDustLane:
 class CircumstellarDisk:
     def __init__(self, star):
         self.star = star
-        self.planet_inner_bound = 0.3 * (star.mass_ratio ** 0.333)
-        self.planet_outer_bound = 50 * (star.mass_ratio ** 0.333)
+        self.planet_inner_bound = 0.01 * (star.mass_ratio ** 0.333) #SM - inner edge of disk? 0.3 AU, scales with stellar mass
+        self.planet_outer_bound = 50 * (star.mass_ratio ** 0.333)  #SM - outer edge of disk? 50 AU, scales with stellar mass 
 
         self.lanes = [CircumstellarDustLane(
-            0, star.stellar_dust_limit, True, True)]
+            0, star.stellar_dust_limit, True, True)] #SM - stellar dust limit is outer edge of Disk; in stellar_system.py; = 200 * starmass ^ 1/3; 1 solar mass is 200 AU
 
     def dust_density(self, a):
-        return DUST_DENSITY_COEFF * sqrt(self.star.mass_ratio) * exp(-ALPHA * (a ** (1.0 / N)))
+        return DUST_DENSITY_COEFF * sqrt(self.star.mass_ratio) * exp(-ALPHA * (a ** (1.0 / N))) 
+        #SM - something to tune? certinaly get in a shape to compare with Mulders 2020. What even are these units?
 
     @property
     def dust_left(self):
@@ -60,14 +61,13 @@ class CircumstellarDisk:
                     gas_density = 0.0
                 else:
                     # TODO: This is DEEP Magic. Figure it out somehow.
-                    gas_density = (K - 1.0) * dust_density / (1.0 +
-                                                              sqrt(planetoid.critical_mass / planetoid.mass) * (K - 1.0))
+                    gas_density = (K - 1.0) * dust_density / (1.0 + sqrt(planetoid.critical_mass / planetoid.mass) * (K - 1.0))
+                    #SM - this is weird.
 
                 # Compute the width of the overlap between the region of effect and the lane.
                 bandwidth = planetoid.outer_effect_limit - planetoid.inner_effect_limit
 
-                width = min(lane.outer, planetoid.outer_effect_limit) - \
-                    max(lane.inner, planetoid.inner_effect_limit)
+                width = min(lane.outer, planetoid.outer_effect_limit) - max(lane.inner, planetoid.inner_effect_limit)
 
                 temp1 = planetoid.outer_effect_limit - lane.outer
                 if (temp1 < 0.0):
@@ -77,12 +77,13 @@ class CircumstellarDisk:
                 if (temp2 < 0.0):
                     temp2 = 0.0
 
-                temp = 4.0 * pi * (planetoid.orbit.a ** 2.0) * planetoid.reduced_mass * \
-                    (1.0 - planetoid.orbit.e * (temp1 - temp2) / bandwidth)
+                temp = 4.0 * pi * (planetoid.orbit.a ** 2.0) * planetoid.reduced_mass * (1.0 - planetoid.orbit.e * (temp1 - temp2) / bandwidth)
                 volume = temp * width
+                #SM Here is the step of determining mass of dust in the lane that gets added without timestep to the planet. 
+                # 4*pi*r**2
 
-                new_dust_mass += volume * dust_density
-                new_gas_mass += volume * gas_density
+                new_dust_mass += volume * dust_density #a mass;
+                new_gas_mass += volume * gas_density   #a mass 
         return new_dust_mass, new_gas_mass
 
     def update_dust_lanes(self, planetoid):

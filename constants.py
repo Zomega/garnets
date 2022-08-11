@@ -11,7 +11,7 @@ MOLAR_GAS_CONST = 8314.41  # units: g*m2/(sec2*K*mol)
 
 # Tunable Constants.
 # TODO(woursler): Give these some meaning?
-DUST_DENSITY_COEFF = 0.002
+DUST_DENSITY_COEFF = 0.002  #original value = 0.002
 ECCENTRICITY_COEFF = 0.077
 ALPHA = 5.0
 B = 1.2 * 10**-5

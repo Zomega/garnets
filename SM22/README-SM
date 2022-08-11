@@ -1,0 +1,31 @@
+These files are work related to planet formation, using garnets and ReBound, and some real exoplanet data. They are jupyter notebooks and require some python modules. Those modules include:
+
+numpy, matplotlib, rebound, astropy, garnets, pickle
+Most of these come with conda installation EXCEPT rebound and garnets. Google is friend.
+
+ReBound: https://rebound.readthedocs.io/en/latest/
+
+
+withRebound_v1-interactions.ipynb
+- attempts to steer garnets outputs (planetary systems) to rebound inputs to simulate realistic n-body (gravitational) interactions between the planets. 
+- garnets produces random systems every time, so a "standard" set of ten multiplanet systems is included as a pickle file "tensamp.p". The notebook has the block that loads the pickle.
+- to develop further requires more work with ReBound
+
+garnetspops_exopops.ipynb
+- the original line of work started with Dr. Hammond circa Fall 2019
+- uses the updated garnets/accrete code, modified slightly by SM/SH
+- contains class, functions to generate as many as desired systems via garnets, over whatever range of stellar mass and ages (the inputs of garnets), then plot the mass and radius vs period of the generated planets WITH the observed, real exoplanet population, and Kepler planets highlighted. 
+- the plots are very nice looking
+- requires the exoplanet pops and kepler pops excel spreadsheets, which were generated from the NASA Exoplanet Archive in November 2020.
+- future work would do well to further clip the garnets generated systems by observability. Some code is out there to do this, but try "epos"
+
+EPOS: https://eos-nexus.org/epos/
+
+
+hamplanets.py 
+- contains two functions that produce planetary systems via garnets, according to realistic stellar spectral class/masses
+- created for easy creation of systems for porting into other software, games like Kerbal SP. 
+- Nicely documented, should be easy to use.
+
+-SM Aug 2022
+

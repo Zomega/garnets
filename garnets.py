@@ -1,3 +1,4 @@
+import numpy as np
 import logging
 import random
 from math import sqrt, log
@@ -391,7 +392,7 @@ def generate_planet(protoplanet, star, random_tilt=0, planet_id=None, do_gases=T
 
             if (h2_life < star.age):
 
-                h2_loss = ((1.0 - (1.0 / exp(star.age / h2_life))) * h2_mass)
+                h2_loss = ((1.0 - (1.0 / np.exp(star.age / h2_life))) * h2_mass)
 
                 planet.gas_mass -= h2_loss
                 planet.mass -= h2_loss
@@ -399,9 +400,11 @@ def generate_planet(protoplanet, star, random_tilt=0, planet_id=None, do_gases=T
                 planet.surf_accel = acceleration(planet.mass, planet.radius)
                 planet.surf_grav = gravity(planet.surf_accel)
 
-            if (he_life < star.age):
-
-                he_loss = ((1.0 - (1.0 / exp(star.age / he_life))) * he_mass)
+            if (he_life < star.age) and (he_life < 0.00001):
+                he_loss = 1.0
+            else:
+                print("LOOK AT ME: Star Age = {0:4.1f} Gyr, He life = {1:6.6f}, He mass = {2:6.6f}".format(star.age/1e9, he_life, he_mass))
+                he_loss = ((1.0 - (1.0 / np.exp(star.age / he_life))) * he_mass)
 
                 planet.gas_mass -= he_loss
                 planet.mass -= he_loss
@@ -417,6 +420,7 @@ def generate_planet(protoplanet, star, random_tilt=0, planet_id=None, do_gases=T
     planet.day = day_length(planet)    # Modifies planet.resonant_period
     planet.esc_velocity = escape_vel(planet.mass, planet.radius)
 
+    # Environmental conditions for gas giant planets
     if planet.type == PlanetType.GAS_GIANT or planet.type == PlanetType.SUB_GAS_GIANT or planet.type == PlanetType.SUB_SUB_GAS_GIANT:
 
         planet.greenhouse_effect = False
