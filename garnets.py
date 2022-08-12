@@ -395,7 +395,11 @@ def generate_planet(protoplanet, star, random_tilt=0, planet_id=None, do_gases=T
 
             if (h2_life < star.age):
 
-                h2_loss = ((1.0 - (1.0 / np.exp(star.age / h2_life))) * h2_mass)
+                #h2_loss = ((1.0 - (1.0 / np.exp(star.age / h2_life))) * h2_mass)
+                if (star.age / h2_life)>709:
+                    h2_loss = ((1.0 - (1.0 / exp(709.0))) * h2_mass)
+                else:
+                    h2_loss = ((1.0 - (1.0 / exp(star.age / h2_life))) * h2_mass)
 
                 planet.gas_mass -= h2_loss
                 planet.mass -= h2_loss
