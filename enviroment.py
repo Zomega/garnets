@@ -35,7 +35,7 @@ from util import pow1_4, pow2, pow3, about
 
 # TODO(woursler): This whole file desperately needs natu.
 
-VERBOSE = True
+VERBOSE = False
 
 
 class BreathabilityPhrase(Enum):
@@ -56,7 +56,7 @@ class PlanetType(Enum):
     MARTIAN = 7
     WATER = 8
     ICE = 9
-    ASTERIODS = 10
+    ASTEROIDS = 10
     # TODO(woursler): Don't know what this means... maybe tidally locked?
     ONE_FACE = 11
 
