@@ -394,7 +394,8 @@ def generate_planet(protoplanet, star, random_tilt=0, planet_id=None, do_gases=T
             he_life = gas_life(HELIUM, planet)
 
             if (h2_life < star.age):
-
+                #math.exp with a value above 709 results in a math range error
+                #this is a dumb fix. STH 2021-0131
                 #h2_loss = ((1.0 - (1.0 / np.exp(star.age / h2_life))) * h2_mass)
                 if (star.age / h2_life)>709:
                     h2_loss = ((1.0 - (1.0 / exp(709.0))) * h2_mass)
