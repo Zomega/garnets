@@ -182,6 +182,9 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
             disk.accrete_dust(planet)
 
             planet.orbit = Orbit(a=a, e=e)
+            #####
+            planet.orbit_a = a
+            planet.orbit_e = e
             planet.dust_mass = planet.dust_mass + canidate.dust_mass  # + new_dust
             planet.gas_mass = planet.gas_mass + canidate.gas_mass  # + new_gas
             finished = True
@@ -507,7 +510,7 @@ def generate_planet(protoplanet, star, random_tilt=0, planet_id=None, do_gases=T
         if (planet.surf_pressure < 1.0):
 
             if (not is_moon) and ((planet.mass * SUN_MASS_IN_EARTH_MASSES) < ASTEROID_MASS_LIMIT):
-                planet.type = PlanetType.ASTERIODS
+                planet.type = PlanetType.ASTEROIDS
             else:
                 planet.type = PlanetType.ROCK
 
