@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+	<meta http-equiv=content-type content='text/html; charset=utf-8'>
+	<title>System for {{star.name}}</title>
+	<meta name='generator' content='{{progname}} v{{progversion}}'>
+	<meta name='seed' content='{{seed}}'>
+	<style type='text/css'>
+		table {
+			border-color: #ffd;
+		}
+		body {
+			color: #330000;
+			background-color: #FFCC99;
+		}
+		body > table {
+			border: 3;
+		}
+		a:link {
+			color: #990000;
+		}
+        a:visited {
+        	color: #330000;
+        }
+        a:active {
+        	color: #FF0000;
+        }
+	</style>
+	<link rel='icon' type='image/png' href='{{base_url}}/favicon.png'>
+</head>
+<body>
+	<table>
+		<tr><th colspan=2>{{star.name}}</th></tr>
+	</table>
+
+
+	 
+{#
+
+	border=3 cellspacing=2 cellpadding=2 align=center "
+	        	   "bgcolor='" BGTABLE "' width='90%%'>\n"
+			"<tr><th colspan=2 bgcolor='" BGTABLE "' align=center>\n"
+			"\t<font size='+2' color='" TXTABLE "'>");
+
+// Main page colors: Beige BG, Dark brown text, Red links
+#define BGCOLOR		"#FFCC99"
+#define TXCOLOR		"#330000"
+#define LINKCOLOR	"#990000"
+#define ALINKCOLOR	"#FF0000"
+
+// Contrasting headers: Light brown with black text
+#define BGHEADER	"#CC9966"
+#define TXHEADER	"#000000"
+
+// Space, background for planets, black with sand colored letters
+#define BGSPACE		"#000000"
+#define TXSPACE		"#FFE6CC"
+
+// Main table color scheme: Sand with black (space reversed)
+#define BGTABLE		"#FFE6CC"
+#define TXTABLE		"#000000"
+
+// Notices: Post-It yellow with normal text
+
+#define BGNOTE		"#FFFF66"
+#define TXNOTE		TXCOLOR
+
+html_thumbnails(innermost_planet, html_file, 
+				system_name, 
+				url_path, system_url, svg_url, file_name,
+				TRUE, FALSE, TRUE, do_moons, graphic_format);
+html_describe_system(innermost_planet, do_gases, url_path, html_file);
+#}
+
+	<p>
+		<center>
+			This page was created by <a href='{{base_url}}'>{{progname}}</a>
+		</center>
+	</p>
+</body>
+</html>

@@ -6,7 +6,7 @@
       viewBox='-{{margin}} -{{margin}} {{max_x + 2 * margin}} {{max_y + 2 * margin}}'>
 
  	<title>{{star.name}}</title>
- 	<desc>Created by: {{progname}} - {{progversion}}</desc>
+ 	<desc>Created by: {{progname}} v{{progversion}}</desc>
  	<g>
  		<line
 			x1='{{min_log | log_au_distance}}'

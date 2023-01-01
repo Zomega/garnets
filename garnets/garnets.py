@@ -708,7 +708,10 @@ JINJA2_ENVIROMENT = Environment(
 )
 
 if __name__ == '__main__':
-    #random.seed('earth2')
+    # TODO(woursler): Generate a random seed if not provided.
+    SEED = 'WhoPatentsMath'
+    #random.seed(SEED)
+    # TODO(woursler): Pass in the seed.
     system = generate_stellar_system(random_star())
 
     print(system)
@@ -747,10 +750,8 @@ if __name__ == '__main__':
     JINJA2_ENVIROMENT.filters['log_au_distance'] = transform_log_au_distance
     JINJA2_ENVIROMENT.filters['mass_repr'] = mass_repr
 
-    svg_path = Path(__file__).resolve().parents[2] / Path('test.svg')
-    svg_template = JINJA2_ENVIROMENT.get_template('system.svg')
-
-    svg_path.write_text(svg_template.render(**{
+    template_args = {
+        'seed': SEED,
         'star': system,
         'progname': 'garnets',
         'progversion': '0.0.1',
@@ -764,5 +765,14 @@ if __name__ == '__main__':
                 lambda dx: math.log10(dx),
                 range(2, 9 + 1)
             )
-        )
-    }))
+        ),
+        'base_url': 'http://localhost:8000',
+    }
+
+    svg_path = Path(__file__).resolve().parents[2] / Path('test.svg')
+    svg_template = JINJA2_ENVIROMENT.get_template('system.svg')
+    svg_path.write_text(svg_template.render(**template_args))
+
+    html_path = Path(__file__).resolve().parents[2] / Path('test_system.html')
+    html_template = JINJA2_ENVIROMENT.get_template('system.html')
+    html_path.write_text(html_template.render(**template_args))
