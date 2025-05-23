@@ -1,13 +1,5 @@
 # Project Documentation
 
-Welcome to the documentation for this Python-based planetary system generation project, a port and extension of the concepts from the original StarGen C code. This documentation aims to provide a clear, high-level understanding of the simulation's architecture and how its various components work together to create detailed stellar systems.
-
-The core logic is distributed across several Python modules. Each module is responsible for a specific aspect of the simulation, from defining the basic data structures for stars and planets, to modeling the accretion of material in protoplanetary disks, and calculating the complex environmental conditions on individual worlds.
-
-The "Module Documentation" section below provides links to individual markdown files for each key module. These documents offer a **conceptual overview** of each module's purpose, its main responsibilities, and how it interacts with other parts of the system. They focus on explaining the roles of major classes and functions at a high level, rather than providing exhaustive, line-by-line details. The goal is to help you understand the overall design and flow of the simulation. For minute implementation details, the source code itself remains the definitive reference, though this documentation should serve as a useful guide to navigate it. Furthermore, this document includes a comparison with the original StarGen C code and a summary of pending development tasks to provide a fuller context of the project.
-
-## Module Documentation
-
 This project is composed of several Python modules, each responsible for a specific part of the planetary formation and environment simulation. Below is a list of these modules and links to their detailed documentation:
 
 *   [`accrete.py`](accrete.md) - Simulates the accretion of dust and gas by planetesimals in a circumstellar disk.
@@ -20,20 +12,9 @@ This project is composed of several Python modules, each responsible for a speci
 
 ## Original StarGen C Code
 
-The `StarGenCode/` directory contains the original C source code of the StarGen program, from which this Python version has been ported. This code provides the foundational algorithms and logic for the planetary system generation and environmental modeling. Understanding the original C code can be helpful for context and for appreciating the porting effort.
+The `StarGenCode/` 
 
-The C files included in the `StarGenCode/` directory are:
-
-*   `accrete.c`
-*   `const.h`
-*   `display.c`
-*   `display.h`
-*   `enviro.c`
-*   `main.c`
-*   `stargen.c`
-*   `structs.h`
-
-## Potential Future Enhancements (Inspired by Original C StarGen)
+## Potential Future Enhancements
 
 The Python port currently provides the core engine for planetary system generation. The original C StarGen application had a rich set of features that could inspire future enhancements for this Python version, transforming it from a core library into a more comprehensive tool:
 
@@ -66,11 +47,7 @@ The Python port currently provides the core engine for planetary system generati
 *   **Review and Refine Simulation Depth for Specific Scenarios:**
     *   Further investigate and potentially implement more detailed checks or logging for specific scenarios, such as the conditions for habitability on moons of gas giants or the specific criteria that defined "Sphinx-like" planets in the original.
 
-By addressing these areas, the Python port can evolve into a more versatile and feature-rich tool for planetary system simulation, building upon the strong foundation of the original StarGen.
-
 ## Remaining Tasks and TODOs
-
-This section lists pending tasks, areas for improvement, and explicit TODO items that were noted during the documentation process, primarily referencing comments or pending work within the source code.
 
 **For `chemtable.py`:**
 *   Improve accuracy of `melt` and `boil` points, potentially using phase diagrams that consider pressure variations.

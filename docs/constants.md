@@ -35,9 +35,3 @@ The constants are broadly grouped into several categories, each serving a distin
 
 *   **Albedo Values:**
     This category provides estimated albedo (reflectivity) values for different types of surfaces and conditions, such as `ICE_ALBEDO`, `WATER_ALBEDO`, and `CLOUD_ALBEDO`. Albedo is a key factor in calculating a planet's energy balance and surface temperature.
-
-### General Notes
-
-The `constants.py` file is quite extensive. The source code itself contains comments suggesting areas for future improvements, such as potential refactoring for better organization or clarification for specific constant values.
-
-For the exact numerical values and more specific context on each constant, users should refer directly to the `constants.py` source file. This documentation provides a high-level guide to understanding the role and organization of these constants within the simulation.

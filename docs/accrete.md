@@ -46,39 +46,3 @@ The `CircumstellarDisk` class represents the entire expanse of dust and gas surr
     *   The swept portion is marked as `dust_present = False`. Gas presence is also updated based on whether the `Planetoid` accreted gas.
 
 This cycle of collection and disk update allows the simulation to model the gradual depletion of the circumstellar disk as planetesimals grow into larger bodies.
-
-## Conceptual Code Example
-
-The following illustrates how these classes might be used in a simplified, conceptual manner. Note that `Star` and `Planetoid` would be defined in other modules like `stellar_system.py`.
-
-```python
-# Assume Star and Planetoid classes are defined elsewhere
-# from stellar_system import Star, Planetoid, Orbit
-# from accrete import CircumstellarDisk # CircumstellarDustLane is used internally by CircumstellarDisk
-
-# 1. Initialize a Star (details depend on the Star class definition)
-# star = Star(mass_ratio=1.0, age=1e9) # Example values
-# star.stellar_dust_limit = 50.0 # AU, example
-
-# 2. Create the Circumstellar Disk around the Star
-# disk = CircumstellarDisk(star=star)
-
-# 3. Define a Planetoid (details depend on the Planetoid class definition)
-# initial_orbit = Orbit(a=1.0, e=0.05) # Example orbit at 1 AU
-# planetoid = Planetoid(orbit=initial_orbit, dust_mass=1e-10, gas_mass=0.0) # Example initial mass
-# # Other necessary planetoid attributes like inner_effect_limit, outer_effect_limit, critical_mass
-# # would also need to be set or calculated.
-# planetoid.inner_effect_limit = 0.9 # Example
-# planetoid.outer_effect_limit = 1.1 # Example
-# planetoid.critical_mass = 0.0001 # Example (in solar masses)
-
-# 4. Simulate the accretion process for the Planetoid
-# if disk.dust_available(planetoid.inner_effect_limit, planetoid.outer_effect_limit):
-#     disk.accrete_dust(planetoid) # This method handles iterative collection and updates the planetoid's mass
-
-# 5. After accretion, the planetoid's mass will have changed,
-#    and the disk's dust lanes will be updated.
-# print(f"Planetoid final dust mass: {planetoid.dust_mass}, final gas mass: {planetoid.gas_mass}")
-# print(f"Is there still dust left in the disk? {disk.dust_left}")
-```
-This conceptual example shows the main interaction: creating a disk, introducing a planetesimal, and then letting the `accrete_dust` method handle the growth and subsequent changes to the disk. The actual implementation in `garnets.py` involves more detailed setup and iteration.

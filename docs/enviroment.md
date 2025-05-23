@@ -50,5 +50,3 @@ To make sense of the vast amount of data calculated, `enviroment.py` uses severa
 ## Iterative Nature of Environmental Modeling
 
 It's important to note that many of these environmental calculations are interdependent. For example, surface temperature depends on albedo, but albedo (due to ice/water/clouds) depends on surface temperature. This is why the simulation, particularly in `iterate_surface_temp`, uses an iterative approach, refining the values over several cycles until they reach a stable, self-consistent state.
-
-*Note: The source code itself contains comments indicating areas for future refinement, such as potentially breaking this large file into smaller, more focused modules.*

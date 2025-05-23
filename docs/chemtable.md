@@ -60,10 +60,6 @@ Here's a conceptual look at how an entry in the `gases` list might be structured
 # - ... (other properties like boil, density, reactivity, etc.)
 ```
 
-## Limitations and Considerations
-
-The source code notes some simplifications and areas for future enhancement, for instance, regarding phase diagrams and complex chemical reactions. The specific contexts for some abundance metrics could also be further clarified.
-
 ## Accessing Gas Data
 
 To use this data, other modules typically import the `gases` list and then iterate through it or look up specific gases by their properties (like `symbol` or `num`).
