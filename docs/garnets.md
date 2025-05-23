@@ -16,9 +16,13 @@ Here's how the main functions in `garnets.py` collaborate to achieve this:
 ### 1. Starting with a Star: `random_star()`
 
 *   **Purpose**: To create the central `Star` object that will be the anchor of the new planetary system.
-*   **Inputs**: Typically none (though it can be seeded for reproducibility).
-*   **Outputs**: A `Star` object (defined in `stellar_system.py`), usually initialized with a randomized age and a default (solar) mass.
+*   **Inputs**: Typically none.
+*   **Outputs**: A `Star` object (defined in `stellar_system.py`).
 *   **Role**: This is often the first step, providing the stellar context (mass, luminosity, age) which heavily influences how planets form and evolve.
+*   **Current Implementation Details**:
+    *   The function initializes a `Star` object with a `mass_ratio` typically set to 1.0 (representing one solar mass).
+    *   The star's `age` is assigned a randomly selected value, generally between approximately 1.0 and 6.0 billion years.
+    *   Future enhancements are planned to allow for seeded random number generation for reproducibility and to incorporate more diverse and astrophysically-based distributions for stellar properties.
 
 ### 2. Generating the Entire System: `generate_stellar_system()`
 

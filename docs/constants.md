@@ -35,3 +35,31 @@ The constants are broadly grouped into several categories, each serving a distin
 
 *   **Albedo Values:**
     This category provides estimated albedo (reflectivity) values for different types of surfaces and conditions, such as `ICE_ALBEDO`, `WATER_ALBEDO`, and `CLOUD_ALBEDO`. Albedo is a key factor in calculating a planet's energy balance and surface temperature.
+
+## Notes on Specific Constants
+
+This section provides further details on selected constants, particularly those where their derivation, full physical interpretation, or source is not exhaustively detailed in the current version of the documentation or source comments.
+
+*   **Coefficients in Physical Models:**
+    The following coefficients are utilized in various physical calculations within the simulation. While their application is defined, their specific derivation or full tuning rationale is not detailed in the current documentation version.
+    *   `DUST_DENSITY_COEFF`: Currently `2.0e-3` (g/cm^3). Used in calculations related to dust density in the protoplanetary disk.
+    *   `ECCENTRICITY_COEFF`: Currently `0.077` (Dimensionless). Applied in calculations involving orbital eccentricities.
+    *   `ALPHA`: Currently `5.0` (Dimensionless). Used in critical mass calculations for planetesimals.
+    *   `B`: Currently `1.2e-5` (Dimensionless). Used in accretion calculations.
+    *   `GAS_DUST_RATIO`: Currently `50.0` (Dimensionless). Represents the mass ratio of gas to dust in the protoplanetary disk model.
+    *   `J`: Currently `1.46e-19`. This value appears in luminosity calculations; its unit and precise physical basis are not currently detailed. (Note: source code value is `1.46E-19`).
+    *   `ASTEROID_MASS_LIMIT`: Currently `0.001` (Solar Masses). This serves as a threshold for classifying celestial bodies as asteroids within the simulation.
+
+*   **Water Freezing Point:**
+    *   `FREEZING_POINT_OF_WATER`: Currently `273.15` (Kelvin). This constant defines the standard freezing point of water. Future model refinements may consider this property in conjunction with specific gas characteristics or phase behaviors under varying atmospheric pressures.
+
+*   **Albedo Values for Surface Types:**
+    The following constants define albedo (reflectivity) values for different types of planetary surfaces and atmospheric conditions. These are used in calculating a planet's energy balance and surface temperature. The specific empirical sources or theoretical derivations for these precise values are not currently detailed in this documentation.
+    *   `ICE_ALBEDO`: Currently `0.7`
+    *   `CLOUD_ALBEDO`: Currently `0.52`
+    *   `GAS_GIANT_ALBEDO`: Currently `0.5`
+    *   `AIRLESS_ICE_ALBEDO`: Currently `0.5`
+    *   `GREENHOUSE_TRIGGER_ALBEDO`: Currently `0.20`
+    *   `ROCKY_ALBEDO`: Currently `0.15`
+    *   `ROCKY_AIRLESS_ALBEDO`: Currently `0.07`
+    *   `WATER_ALBEDO`: Currently `0.04`

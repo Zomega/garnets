@@ -13,8 +13,8 @@ The `Gas` class serves as a container to hold a standardized set of properties f
 Key types of information stored in a `Gas` object include:
 
 *   **Identification:** Chemical `symbol` (e.g., "O2", "CH4"), common `name` (e.g., "Oxygen", "Methane"), and a unique numerical identifier (`num`, often an atomic number or a predefined constant).
-*   **Physical Properties:** These include `weight` (atomic or molecular), `melt` (melting point), `boil` (boiling point), and `density`. These are vital for determining the state of the gas at different planetary temperatures and for calculating how easily a planet's gravity can retain the gas.
-*   **Abundance Metrics:** Fields like `abunde` and `abunds` provide data on the typical abundance of the gas in stellar or solar system environments, which helps in estimating its initial availability.
+*   **Physical Properties:** These include `weight` (atomic or molecular), `melt` (melting point), `boil` (boiling point), and `density`. These are vital for determining the state of the gas at different planetary temperatures and for calculating how easily a planet's gravity can retain the gas. It's important to note that the current `melt` and `boil` points are simplistic; future improvements aim to use phase diagrams for more accuracy under varying pressures.
+*   **Abundance Metrics:** Fields like `abunde` and `abunds` relate to the relative abundance of the gas. However, their precise individual meanings or the distinction between them is not fully clear from the current code context. These values help in estimating its initial availability.
 *   **Chemical Behavior:** The `reactivity` attribute gives an indication of how readily the gas will engage in chemical reactions.
 *   **Physiological Impact:** The `max_ipp` (maximum inspired partial pressure) attribute stores information about the breathable limits of the gas, important for assessing habitability.
 
