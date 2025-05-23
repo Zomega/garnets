@@ -205,7 +205,10 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
                             and canidate.mass > .0001 * earth_mass \
                             and planet.mass_of_moons < planet.mass * .05 \
                             and planet.mass > canidate.mass:
-                        # TODO: Remove planet.mass > canidate.mass distinction, just switch the canidate and planet!
+                        # TODO: Refactor moon capture logic. If `canidate.mass > planet.mass`,
+                        # swap `candidate` and `planet` to ensure the more massive body is treated
+                        # as the primary object capturing the smaller one as a moon.
+                        # This avoids the `planet.mass > canidate.mass` check.
                         planet.add_moon(
                             convert_planetesimal_to_protomoon(
                                 canidate, planet))
@@ -219,9 +222,11 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
                         finished = True
                         break
                     else:
-                        # TODO: Reasons.
+                        # TODO: Enhance logging for failed moon capture. Specify which condition(s)
+                        # (e.g., candidate mass too high/low, planet's existing moon mass too high,
+                        # candidate more massive than planet) prevented capture.
                         logging.info(
-                            "Did not capture potential moon at %s. Collision imminent." % quantity_repr(
+                            "Did not capture potential moon at %s. Conditions not met or collision imminent." % quantity_repr(
                                 planet.orbit.a, au)
                         )
 
@@ -234,7 +239,11 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
             planet.gas_mass = planet.gas_mass + canidate.gas_mass  # + new_gas
             finished = True
 
-            # Accrete MORE DUST! TODO: Refactor to this, mark the planet as needing to re-accrete.
+            # TODO: Consider refactoring the post-collision accretion step.
+            # Instead of immediate re-accretion via `disk.accrete_dust(planet)`,
+            # explore marking the planet as 'dirty' or 'needs_re_accretion' to
+            # handle this in a subsequent simulation phase. This could allow for
+            # more complex interactions or batch processing of accretion events.
             disk.accrete_dust(planet)
 
             logging.info("Conglomerate is now %s at %s." % (
@@ -243,9 +252,11 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
             ))
 
     if not finished:
-        # TODO: Extra info.
-        logging.info("New Protoplanet at %s." %
-                     quantity_repr(canidate.orbit.a, au))
+        # TODO: Enhance logging for new protoplanet formation. Include
+        # additional information such as its mass and potentially key
+        # compositional details (e.g., dust/gas ratio if available).
+        logging.info("New Protoplanet formed at %s with mass %s." %
+                     (quantity_repr(canidate.orbit.a, au), mass_repr(canidate.mass)))
         planets.append(convert_planetesimal_to_protoplanet(canidate))
 
 
@@ -259,7 +270,11 @@ def calculate_gases(star, planet, planet_id):
 
         for i in range(len(GASES)):
 
-            # TODO(woursler): WTH is this?
+            # TODO: Clarify the derivation and meaning of the variable `yp`
+            # and the formula used for its calculation. This formula appears to adjust
+            # boiling points based on pressure. Document the source of the constants
+            # (e.g., -5050.5, 373., 0.001) and explain its physical basis
+            # (e.g., Clausius-Clapeyron approximation for water, adapted for other gases).
             yp = GASES[i].boil / \
                 (373. * ((log((pressure) + 0.001) / -5050.5) + (1.0 / 373.)))
 
@@ -274,7 +289,11 @@ def calculate_gases(star, planet, planet_id):
                 fract = 1.0
                 pres2 = 1.0
 
-                # TODO(woursler): This needs to go in the chemtable somehow.
+                # TODO: Refactor gas reactivity logic. Move the hardcoded rules
+                # for specific gases (Ar, He, O, O2, CO2) and their dependence on
+                # stellar age and pressure into `chemtable.py`, possibly by adding
+                # reactivity parameters or functions to the `Gas` class or a
+                # related data structure. This would centralize chemical properties.
 
                 if GASES[i].symbol == "Ar":
                     react = .15 * star.age / 4e9 / year
@@ -383,7 +402,10 @@ def roche_limit(planet, moon):
 
 
 def hill_sphere(planet, star):
-    # TODO(woursler): Confirm this
+    # TODO: The formula used is a common approximation for the Hill sphere
+    # radius ( R_H = a * (m / (3*M))^(1/3) ). Confirm if this level of precision
+    # is adequate for the simulation or if more exact formulations are needed for
+    # specific scenarios (e.g., highly eccentric orbits, larger moon/planet mass ratios).
     return planet.orbit.a * pow(
         (planet.mass / (3.0 * star.mass)), (1.0 / 3.0))
 
@@ -431,12 +453,19 @@ def generate_planet(protoplanet,
     planet.radius = volume_radius(planet.mass, planet.density)
 
     planet.surf_accel = acceleration(planet.mass, planet.radius)
-    planet.surf_grav = planet.surf_accel  # TODO(woursler): Remove ambiguity.
+    # TODO: Clarify the distinction between `surf_accel` (calculated
+    # from M, R) and `surf_grav`. If they are intended to be identical
+    # (gravitational acceleration at the surface), consider using only one
+    # variable (e.g., `surface_gravity`). If `surf_grav` might later include
+    # other effects (e.g., centrifugal due to rotation), document this.
+    planet.surf_grav = planet.surf_accel
 
     planet.molec_weight = min_molec_weight(planet)
 
     if ((planet.mass > 1 * earth_mass)
-            # TODO(woursler): Understand where this comes from.
+            # TODO: Document the source or rationale for the 0.05 (5%)
+            # gas mass fraction threshold used in classifying gas giant types.
+            # Cite relevant planetary science literature or model assumptions.
             and ((planet.gas_mass / planet.mass) > 0.05)
             and (planet.molec_weight <= lookup_gas('He').weight)):
 
@@ -555,6 +584,11 @@ def generate_planet(protoplanet,
             ),
             atm,
         )'''
+    # TODO: Review the surface pressure calculation for rocky planets.
+    # Currently, it's set to a fixed `1 * atm` before `iterate_surface_temp`.
+    # Evaluate if the commented-out detailed `pressure(...)` calculation
+    # (based on `volatile_gas_inventory`) should be re-enabled and integrated
+    # into the iteration loop for a self-consistent atmosphere model.
 
         if planet.surf_pressure == 0 * atm:
             planet.boil_point = 0 * K
@@ -576,8 +610,12 @@ def generate_planet(protoplanet,
 
         # Next we assign a type to the planet.
 
-        # TODO(woursler): Figure out if the pressure unit is atm or millibar.
-        if (planet.surf_pressure < 1 * millibar):
+        # TODO: Critical: Ensure consistent units for `planet.surf_pressure`.
+        # It's initialized in `atm` (e.g. `1 * atm` or `INCREDIBLY_LARGE_NUMBER * atm`)
+        # but compared with `millibar` values in type classification (e.g. `< 1 * millibar`).
+        # Convert values to a consistent unit (e.g., millibar or atm) before
+        # comparison to ensure correct planet type assignment.
+        if (planet.surf_pressure < 1 * millibar): # Assuming surf_pressure is converted to mbar for this block
             if (not is_moon) and planet.mass < ASTEROID_MASS_LIMIT:
                 planet.type = PlanetType.ASTERIODS
             else:
@@ -615,7 +653,10 @@ def generate_planet(protoplanet,
             elif (planet.surf_temp < FREEZING_POINT_OF_WATER):
                 planet.type = PlanetType.ICE
             else:
-                # TODO(woursler): Consider throwing an error here.
+                # TODO: Implement error handling for unclassified planets.
+                # If planet type remains `UNKNOWN` after classification logic,
+                # raise an error or log a critical warning to identify and address
+                # gaps in the classification rules.
                 planet.type = PlanetType.UNKNOWN
                 '''if (flag_verbose & 0x0001)
                     fprintf (stderr, "%12s\tp=%4.2Lf\tm=%4.2Lf\tg=%4.2Lf\tt=%+.1Lf\t%s\t Unknown %s\n",
@@ -656,9 +697,12 @@ def generate_planet(protoplanet,
                     moon.orbit = Orbit(a=moon_a, e=moon_e)
 
                 else:
-                    # TODO(woursler): This seems like an error?
-                    # The moon has no stable space to orbit.
-                    moon.orbit = Orbit(a=0, e=0)
+                    # TODO: Address unstable moon orbits. If
+                    # `roche_limit_r * 1.5 >= hill_sphere_r / 2`, setting orbit to a=0, e=0
+                    # is not a physical solution. Consider alternative outcomes: moon is
+                    # destroyed (becomes rings), ejected, or crashes into the planet.
+                    # Log this event clearly.
+                    moon.orbit = Orbit(a=0*km, e=0) # Representing no stable orbit found
 
                 planet.moons.append(moon)
 
@@ -713,7 +757,10 @@ if __name__ == '__main__':
 
     print(system)
 
-    # Output SVG TODO(woursler): Configure as flags?
+    # Output SVG
+    # TODO: Make SVG output configurable. Add command-line flags
+    # (e.g., using `argparse`) to control whether the SVG visualization is
+    # generated and to specify the output path.
 
     max_x = 1500
     max_y = 120
