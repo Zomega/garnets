@@ -41,7 +41,10 @@ class Star():
 
     @property
     # Approximates the luminosity of the star.
-    # TODO: express only as ratio?
+    # TODO: Clarify if this property should return a pre-calculated ratio or if the
+    # current calculation (which results in a de facto ratio to Solar luminosity)
+    # is the intended design. If the latter, consider renaming to
+    # `calculated_luminosity_ratio` or adding a comment explaining units.
     # Source: http://en.wikipedia.org/wiki/Mass%E2%80%93luminosity_relation
     def luminosity_ratio(self):
         if (self.mass_ratio < .43):
@@ -55,12 +58,18 @@ class Star():
         return 3200 * self.mass_ratio
 
     @property
-    # Source: StarGen, TODO Verify against current data.
+    # Source: StarGen
+    # TODO: Verify the formula `200 * (self.mass_ratio**(1/3)) * au` for stellar
+    # dust limit against current astrophysical models and data, as its source is StarGen.
     def stellar_dust_limit(self):
         return 200 * (self.mass_ratio**(1/3)) * au
 
     @property
-    def r_ecosphere(self):  # Source: StarGen, TODO Name? Value? Possible habitable zone?
+    # Source: StarGen
+    # TODO: Verify the term 'r_ecosphere' and its calculation
+    # `sqrt(self.luminosity_ratio) * au` against modern definitions of the habitable
+    # zone center. Confirm if this simplified model is appropriate for the simulation's scope.
+    def r_ecosphere(self):
         return sqrt(self.luminosity_ratio) * au
 
     @property
@@ -72,7 +81,11 @@ class Star():
         return sqrt(self.luminosity_ratio / 0.48) * au
 
     @property
-    def life(self):  # Source: StarGen, TODO Name? Value?
+    # Source: StarGen
+    # TODO: Verify the formula `10**10 * (self.mass_ratio / self.luminosity_ratio)`
+    # for stellar lifetime against current astrophysical models. Ensure the
+    # implicit unit (years) is clear or made explicit by returning a Quantity.
+    def life(self):
         return 10**10 * (self.mass_ratio / self.luminosity_ratio)
 
     @property
@@ -112,7 +125,11 @@ class Orbit:
         return (1 + self.e) * self.a
 
 
-STAR_MASS = 1 * solar_mass  # TODO(woursler): Use the actual star mass
+# TODO: Critical: Replace global `STAR_MASS` constant with the actual mass of
+# the star associated with the planetoid (e.g., `self.disk.star.mass` for
+# Planetesimals or `self.star.mass` for Protoplanets) in the `reduced_mass`
+# calculation for accuracy. This constant is a placeholder.
+STAR_MASS = 1 * solar_mass
 
 
 @attrs
@@ -130,19 +147,24 @@ class Planetoid():
         # To understand what this is all about...
         # http://spiff.rit.edu/classes/phys440/lectures/reduced/reduced.html
         # But some sort of 3 body case, see dole.
-        # TODO: Understand better?
-        # TODO(woursler): Actually use the mass of the star?
+        # TODO: Investigate and document the origin and physical basis of the
+        # `reduced_mass` formula `(self.mass / (STAR_MASS + self.mass))**0.25`,
+        # particularly the 0.25 exponent. Cite Dole or other relevant sources.
+        # This is also linked to the TODO regarding the global `STAR_MASS`.
         return (self.mass / (STAR_MASS + self.mass))**0.25
 
     @property
     def inner_effect_limit(self):
-        # TODO(woursler): Should extend further in, include dust destabilized
-        # by indirect gravitational effects.
+        # TODO: Enhance `inner_effect_limit` model. Consider extending the limit
+        # further inward to account for dust destabilization by indirect gravitational
+        # effects, beyond the current geometric calculation.
         return self.orbit.a * (1.0 - self.orbit.e) / (1.0 + DISK_ECCENTRICITY)
 
     @property
     def outer_effect_limit(self):
-        # TODO(woursler): See note on inner_effect_limit
+        # TODO: Enhance `outer_effect_limit` model, similar to `inner_effect_limit`.
+        # Consider effects beyond the current geometric calculation (e.g., indirect
+        # gravitational perturbations) that might extend the zone of influence.
         return self.orbit.a * (1.0 + self.orbit.e) / (1.0 - DISK_ECCENTRICITY)
 
 
@@ -154,11 +176,14 @@ class Planetesimal(Planetoid):
     def critical_mass(self):
         perihelion_dist = self.orbit.a * (1 - self.orbit.e)
         temp = perihelion_dist * sqrt(self.disk.star.luminosity_ratio)
-        # TODO(woursler): Understand the basis for this.
+        # TODO: Document the origin and theoretical basis of the `critical_mass`
+        # formula `B * (dimensionless_with_units(temp, au)**-0.75) * solar_mass`.
+        # Cite the relevant planetary formation theory or source (e.g., Dole, Hayashi, etc.)
+        # for this specific calculation involving constant B.
         return B * (dimensionless_with_units(temp, au)**-0.75) * solar_mass
 
 
-# TODO(woursler): Migrate to xatu core...
+# TODO: Refactor `mass_repr` by migrating its functionality to `xatu.core`.
 # quantity_repr(mass, {lunar_mass, earth_mass, jupiter_mass, solar_mass})
 # or even quantity_repr(mass, celestial_mass_units)
 def mass_repr(mass) -> str:
@@ -204,9 +229,20 @@ class Protomoon(Planetoid):
     protoplanet = attr()
 
 
-# TODO(woursler): Go over these with a fine tooth comb. Many are not relevant, or only relevant during initialization.
-# Many should be properties.
-# Many should be initialized differently.
+# TODO: Major refactor for `Planet` class attributes:
+# 1. Review each attribute currently defaulted to zero or an empty factory
+#    (e.g., `moon_a`, `core_radius`, `density`, `orb_period`, temperatures, etc.).
+# 2. Identify attributes that should be calculated as properties from other
+#    more fundamental attributes (e.g., `density` from mass and radius).
+# 3. Determine which attributes are true state variables requiring storage
+#    versus derived values that can be computed on-demand.
+# 4. For attributes primarily used during the generation/initialization phase,
+#    assess if they need to be stored on the `Planet` instance long-term or
+#    if they can be transient.
+# 5. Ensure appropriate default values (e.g., `None` or unit-consistent zeros
+#    like `0*km` or `0*K`) for attributes that are not immediately known or set
+#    at instantiation, rather than using plain scalar `0` where it might be
+#    misleading for quantity types.
 @attrs(repr=False)
 class Planet():
     # Orbital details.
@@ -219,7 +255,6 @@ class Planet():
 
     moons = attr(factory=list)
 
-    #   ZEROES start here -- TODO(woursler): A bunch of these should be other Zero-like types.
     gas_giant = attr(default=False)  # TRUE if the planet is a gas giant
     # semi-major axis of lunar orbit
     moon_a = attr(factory=lambda: 0*au, repr=quantity_formatter(au))
@@ -267,8 +302,6 @@ class Planet():
     sun = attr(default=0)
     atmosphere = attr(default=None)
     type = attr(default=PlanetType.UNKNOWN)  # Type code
-
-    #   ZEROES end here
 
     def __repr__(self):
         if self.atmosphere is None:
