@@ -43,6 +43,7 @@ from xatu.units import bar
 from xatu.units import cm
 from xatu.units import deg
 from xatu.units import earth_mass
+from xatu.units import gee
 from xatu.units import gram
 from xatu.units import hour
 from xatu.units import kg
@@ -86,6 +87,7 @@ class PlanetType(Enum):
 class Zone(Enum):
     # TODO(woursler): Figure out the meaning of this?
     # Might be related to habitable zone?
+    # Given in Fogg 85. Seems to be a ... very simplified solar system model.
     ZONE_1 = 1
     ZONE_2 = 2
     ZONE_3 = 3
@@ -322,13 +324,16 @@ def acceleration(mass, radius):
 
 def vol_inventory(mass, escape_vel, rms_vel, stellar_mass, zone,
                   greenhouse_effect, accreted_gas):
-    '''This implements Fogg's eq.17.  The 'inventory' returned is unitless.'''
+    '''This implements Fogg's eq.17.  The 'inventory' returned is unitless.
+
+    There is, best I can tell, an extremely poor justification for this number.'''
 
     velocity_ratio = escape_vel / rms_vel
     if velocity_ratio >= GAS_RETENTION_THRESHOLD:
         if zone == Zone.ZONE_1:
             proportion_ = 140000.0
             '''100 . 140 JLB'''
+            #  10000 in Fogg 85
         elif zone == Zone.ZONE_2:
             proportion_ = 75000.0
         elif zone == Zone.ZONE_3:
@@ -338,6 +343,7 @@ def vol_inventory(mass, escape_vel, rms_vel, stellar_mass, zone,
 
         earth_units = dimensionless_with_units(mass, earth_mass)
         temp2 = (proportion_ * earth_units) / stellar_mass
+
         if greenhouse_effect or accreted_gas:
             return temp2
         else:
@@ -350,13 +356,15 @@ def vol_inventory(mass, escape_vel, rms_vel, stellar_mass, zone,
 def pressure(volatile_gas_inventory, equat_radius, gravity):
     '''This implements Fogg's eq.18.'''
 
-    # TODO(woursler)
-    print(volatile_gas_inventory)
+    radius_ratio = equat_radius / EARTH_RADIUS
+    gravity_ratio = dimensionless_with_units(gravity, gee)
 
-    equat_radius = EARTH_RADIUS / equat_radius
-    return volatile_gas_inventory \
-        * gravity \
-        / (equat_radius**2)
+    vgi_earth = 10000  # Taken from Fogg 85.
+    vgi_ratio = volatile_gas_inventory / vgi_earth
+
+    return atm * vgi_ratio \
+        * gravity_ratio \
+        / (radius_ratio**2)
 
 
 def boiling_point(surf_pressure):
@@ -792,17 +800,18 @@ def iterate_surface_temp(planet):
             break
 
     planet.greenhs_rise = planet.surf_temp - initial_temp
-    '''
+
     if VERBOSE:
-        fprintf(stderr, "%d: %5.gh = %5.1Lf (%5.1Lf C) st - %5.1Lf it [%5.1Lf re %5.1Lf a %5.1Lf alb]\n",
-                planet.planet_no,
-                planet.greenhs_rise,
-                planet.surf_temp,
-                planet.surf_temp - FREEZING_POINT_OF_WATER,
-                initial_temp,
-                planet.sun.r_ecosphere, planet.a, planet.albedo
-                )
-'''
+        print("iterate_surface_temp readout\n" + tabulate([
+            ["greenhs_rise", quantity_repr(planet.greenhs_rise, K)],
+            ["surf_temp", quantity_repr(planet.surf_temp, K)],
+            ["surf_temp - FREEZING_POINT_OF_WATER",
+             quantity_repr(planet.surf_temp - FREEZING_POINT_OF_WATER, K)],
+            ["Initial temp", quantity_repr(initial_temp, K)],
+            ["Solar Ecosphere", quantity_repr(planet.sun.r_ecosphere, au)],
+            ["Orbital Radius", quantity_repr(planet.orbit.a, au)],
+            ["Albedo", planet.albedo],
+        ]))
 
 
 # TODO(woursler): Move this into an atomosphere class.
@@ -861,8 +870,6 @@ def soft(v, max, min):
 
 
 def set_temp_range(planet):
-    # TODO(woursler): PORT THIS
-
     surf_press = dimensionless_with_units(planet.surf_pressure, bar)
     surf_temp = dimensionless_with_units(planet.surf_temp, K)
     day_len = dimensionless_with_units(planet.day, hour)
