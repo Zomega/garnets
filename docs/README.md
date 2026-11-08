@@ -9,6 +9,7 @@ This project is composed of several Python modules, each responsible for a speci
 *   [`garnets.py`](garnets.md) - Orchestrates the generation of entire stellar systems, from planetesimal formation to the detailed characterization of planets and moons.
 *   [`stellar_system.py`](stellar_system.md) - Defines the core data structures for stars, planets, and their components.
 *   [`util.py`](util.md) - Provides miscellaneous utility functions, some of which are placeholders or wrappers for standard Python functionality.
+*   [`whole_planet_evolution.md`](whole_planet_evolution.md) - Design and mathematical guide for porting the coupled interior–surface–ocean–climate model of Gilbert-Janizek et al. (2026) / VPLanet (`ThermInt` + `Clima`) into `garnets`.
 
 ## Original StarGen C Code
 
