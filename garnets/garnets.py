@@ -48,6 +48,7 @@ from stellar_system import Protomoon
 from stellar_system import Protoplanet
 from stellar_system import Star
 from stellar_system import mass_repr
+from xatu.core import UNITLESS_UNIT
 from xatu.core import dimensionless_with_units
 from xatu.core import quantity_repr
 from xatu.math import sqrt
@@ -195,9 +196,10 @@ def coalesce_planetesimals(disk, planets, canidate, do_moons):
             temp = temp / (
                 (planet.mass + canidate.mass) * sqrt(canidate.orbit.a))
             temp = 1 - (temp**2)
+            temp = dimensionless_with_units(temp, UNITLESS_UNIT)
             if temp < 0 or temp >= 1:
-                temp = 0
-            e = sqrt(temp)
+                temp = 0.0
+            e = float(math.sqrt(temp))
 
             if do_moons:
                 if canidate.mass < canidate.critical_mass:
@@ -525,7 +527,7 @@ def generate_planet(protoplanet,
                         str(planet.type),
                         mass_repr(planet.mass),
                         quantity_repr(star.age, year),
-                        "" if planet.first_moon == None else " with moon",
+                        "" if len(planet.moons) == 0 else " with moon",
                         quantity_repr(temp, K),
                     )
                 )
@@ -658,7 +660,7 @@ def generate_planet(protoplanet,
                 else:
                     # TODO(woursler): This seems like an error?
                     # The moon has no stable space to orbit.
-                    moon.orbit = Orbit(a=0, e=0)
+                    moon.orbit = Orbit(a=0*au, e=0)
 
                 planet.moons.append(moon)
 
@@ -769,10 +771,10 @@ if __name__ == '__main__':
         'base_url': 'http://localhost:8000',
     }
 
-    svg_path = Path(__file__).resolve().parents[2] / Path('test.svg')
+    svg_path = Path(__file__).resolve().parents[1] / Path('test.svg')
     svg_template = JINJA2_ENVIROMENT.get_template('system.svg')
     svg_path.write_text(svg_template.render(**template_args))
 
-    html_path = Path(__file__).resolve().parents[2] / Path('test_system.html')
+    html_path = Path(__file__).resolve().parents[1] / Path('test_system.html')
     html_template = JINJA2_ENVIROMENT.get_template('system.html')
     html_path.write_text(html_template.render(**template_args))

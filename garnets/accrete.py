@@ -15,6 +15,7 @@ from constants import ALPHA
 from constants import DUST_DENSITY_COEFF
 from constants import GAS_DUST_RATIO
 from stellar_system import mass_repr
+from xatu.core import UNITLESS_UNIT
 from xatu.core import dimensionless_with_units
 from xatu.core import quantity_formatter
 from xatu.units import au
@@ -80,9 +81,7 @@ class CircumstellarDisk:
     def dust_available(self, inner, outer):
         for lane in self.lanes:
             # See if the lanes overlap.
-            if (lane.inner <= inner
-                    and lane.outer > inner) or (lane.outer >= outer
-                                                and lane.inner < outer):
+            if lane.outer > inner and lane.inner < outer:
                 if lane.dust_present:
                     return True
         return False
@@ -109,7 +108,8 @@ class CircumstellarDisk:
                 else:
                     # TODO: This is DEEP Magic. Figure it out somehow.
                     gas_density = (GAS_DUST_RATIO - 1) * dust_density / (
-                        1 + sqrt(planetoid.critical_mass / planetoid.mass) *
+                        1 + sqrt(dimensionless_with_units(
+                            planetoid.critical_mass / planetoid.mass, UNITLESS_UNIT)) *
                         (GAS_DUST_RATIO - 1))
 
                 # Compute the width of the overlap between the region of effect and the lane.
@@ -165,8 +165,8 @@ class CircumstellarDisk:
                 print("OUTER")
                 # Make an lane for the outside of the old lane
                 new_lanes.append(
-                    CircumstellarDustLane(lane.outer,
-                                          planetoid.outer_effect_limit,
+                    CircumstellarDustLane(planetoid.outer_effect_limit,
+                                          lane.outer,
                                           lane.dust_present, lane.gas_present))
             # Make a lane for the overlapped portion.
             new_lanes.append(
@@ -180,14 +180,21 @@ class CircumstellarDisk:
         self.lanes = new_lanes
 
     def accrete_dust(self, planetoid):
+        seed_dust_mass = planetoid.dust_mass
+        seed_gas_mass = planetoid.gas_mass
         last_mass = planetoid.mass
         while True:
             new_dust_mass, new_gas_mass = self.collect_dust(planetoid)
-            planetoid.dust_mass = new_dust_mass
-            planetoid.gas_mass = new_gas_mass
+            planetoid.dust_mass = seed_dust_mass + new_dust_mass
+            planetoid.gas_mass = seed_gas_mass + new_gas_mass
             print(
                 "Growth since last step",
-                round((planetoid.mass - last_mass) / last_mass, 2),
+                round(
+                    dimensionless_with_units(
+                        (planetoid.mass - last_mass) / last_mass, UNITLESS_UNIT
+                    ),
+                    2,
+                ),
                 "%"
             )
             # Accretion has slowed enough. Stop trying.

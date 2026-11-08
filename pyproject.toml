@@ -1,6 +1,13 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["garnets"]
+norecursedirs = ["docs/references", "StarGenCode", ".git", ".mypy_cache"]
+
 [tool.tidypy]
 exclude = [
-    '.mypy_cache/.*'
+    '.mypy_cache/.*',
+    'docs/references/.*',
+    'StarGenCode/.*'
 ]
 
 [tool.tidypy.pydocstyle]

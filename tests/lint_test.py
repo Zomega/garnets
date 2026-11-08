@@ -1,6 +1,7 @@
 """A series of tests designed to ensure every is nicely formatted."""
 
 import json
+import shutil
 import subprocess  # noqa: bandit:B404
 
 import pytest
@@ -8,6 +9,8 @@ import pytest
 
 def tidypy_issues():
     """Find all the issues identified by tidypy."""
+    if not shutil.which('tidypy'):
+        return None
     command = subprocess.Popen(  # noqa: B603,B607
         ['tidypy', 'check', '--report', 'json'],
         stdout=subprocess.PIPE,
@@ -47,6 +50,8 @@ def test_tidypy(filename):
     global TIDYPY_OUTPUT  # noqa: global-statement
     if TIDYPY_OUTPUT is None:
         TIDYPY_OUTPUT = tidypy_issues()
+    if TIDYPY_OUTPUT is None:
+        pytest.skip("tidypy is not installed")
     issues = TIDYPY_OUTPUT.get(filename, [])
     if len(issues) > 0:
         pytest.fail(

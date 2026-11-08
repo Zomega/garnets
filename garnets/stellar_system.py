@@ -1,4 +1,6 @@
 from math import sqrt
+from typing import Any
+from typing import List
 from tabulate import tabulate
 
 from attr import attr
@@ -6,6 +8,7 @@ from attr import attrs
 from constants import B
 from constants import DISK_ECCENTRICITY
 from enviroment import PlanetType
+from xatu.core import UNITLESS_UNIT
 from xatu.core import dimensionless_with_units
 from xatu.core import quantity_formatter
 from xatu.core import quantity_repr
@@ -32,7 +35,7 @@ class Star():
 
     name = attr(default="Unnamed Star")
 
-    planets = attr(factory=list)
+    planets: List[Any] = attr(factory=list)
 
     @property
     def mass(self):
@@ -132,18 +135,30 @@ class Planetoid():
         # But some sort of 3 body case, see dole.
         # TODO: Understand better?
         # TODO(woursler): Actually use the mass of the star?
-        return (self.mass / (STAR_MASS + self.mass))**0.25
+        return dimensionless_with_units(
+            self.mass / (STAR_MASS + self.mass), UNITLESS_UNIT
+        )**0.25
 
     @property
     def inner_effect_limit(self):
         # TODO(woursler): Should extend further in, include dust destabilized
         # by indirect gravitational effects.
-        return self.orbit.a * (1.0 - self.orbit.e) / (1.0 + DISK_ECCENTRICITY)
+        return (
+            self.orbit.a
+            * (1.0 - self.orbit.e)
+            * (1.0 - self.reduced_mass)
+            / (1.0 + DISK_ECCENTRICITY)
+        )
 
     @property
     def outer_effect_limit(self):
         # TODO(woursler): See note on inner_effect_limit
-        return self.orbit.a * (1.0 + self.orbit.e) / (1.0 - DISK_ECCENTRICITY)
+        return (
+            self.orbit.a
+            * (1.0 + self.orbit.e)
+            * (1.0 + self.reduced_mass)
+            / (1.0 - DISK_ECCENTRICITY)
+        )
 
 
 @attrs
@@ -176,7 +191,7 @@ def mass_repr(mass) -> str:
 @attrs(repr=False)
 class Protoplanet(Planetoid):
     star = attr()
-    moons = attr(factory=list)
+    moons: List[Any] = attr(factory=list)
 
     def add_moon(self, moon):
         self.moons.append(moon)
@@ -217,7 +232,7 @@ class Planet():
     dust_mass = attr(repr=quantity_formatter(kg))  # mass, ignoring gas
     gas_mass = attr(repr=quantity_formatter(kg))  # mass, ignoring dust
 
-    moons = attr(factory=list)
+    moons: List[Any] = attr(factory=list)
 
     #   ZEROES start here -- TODO(woursler): A bunch of these should be other Zero-like types.
     gas_giant = attr(default=False)  # TRUE if the planet is a gas giant
@@ -235,14 +250,16 @@ class Planet():
     resonant_period = attr(default=0)  # TRUE if in resonant rotation
     esc_velocity = attr(default=0)  # units of cm/sec
     surf_accel = attr(default=0)  # units of cm/sec2
-    surf_grav = attr(default=0)  # units of Earth gravities
+    surf_grav = attr(factory=lambda: 0*g_force)  # units of Earth gravities
     rms_velocity = attr(default=0)  # units of cm/sec
     molec_weight = attr(default=0)  # smallest molecular weight retained
     volatile_gas_inventory = attr(default=0)
-    surf_pressure = attr(default=0)  # units of millibars (mb)
+    surf_pressure = attr(factory=lambda: 0*atm)  # units of millibars (mb)
     greenhouse_effect = attr(default=0)  # runaway greenhouse effect?
     # the boiling po of water (Kelvin)
     boil_po = attr(factory=lambda: 0*K, repr=quantity_formatter(K))
+    boil_point = attr(factory=lambda: 0*K, repr=quantity_formatter(K))
+    gases = attr(default=0)
     albedo = attr(default=0)  # albedo of the planet
     exospheric_temp = attr(factory=lambda: 0*K, repr=quantity_formatter(K))
     # quick non-iterative estimate

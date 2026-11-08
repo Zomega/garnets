@@ -1,3 +1,4 @@
+import random
 from enum import Enum
 from math import exp
 from math import inf as INCREDIBLY_LARGE_NUMBER
@@ -26,11 +27,14 @@ from constants import GREENHOUSE_TRIGGER_ALBEDO
 from constants import H2O_ASSUMED_PRESSURE
 from constants import ICE_ALBEDO
 from constants import J
+from constants import MAX_O2_IPP
+from constants import MIN_O2_IPP
 from constants import MOLAR_GAS_CONST
 from constants import ROCKY_AIRLESS_ALBEDO
 from constants import ROCKY_ALBEDO
 from constants import WATER_ALBEDO
 from tabulate import tabulate
+from xatu.core import UNITLESS_UNIT
 from xatu.core import dimensionless_with_units
 from xatu.core import quantity_repr
 from xatu.core import with_units
@@ -49,6 +53,7 @@ from xatu.units import hour
 from xatu.units import kg
 from xatu.units import km
 from xatu.units import m
+from xatu.units import millibar
 from xatu.units import mol
 from xatu.units import rad
 from xatu.units import s
@@ -105,7 +110,7 @@ def orb_zone(luminosity, orb_radius):
 
 def volume_radius(mass, density):
     volume = mass / density
-    return (volume / ((4/3) * pi))**(1/3)
+    return with_units((volume / ((4/3) * pi))**(1/3), km)
 
 
 def kothari_radius(mass, giant, zone):
@@ -178,7 +183,7 @@ def empirical_density(mass, orb_radius, r_ecosphere, gas_giant):
 
 def volume_density(mass, equat_radius):
     volume = (4 / 3) * pi * equat_radius**3
-    return (mass / volume)
+    return with_units(mass / volume, gram / cm ** 3)
 
 
 def period(separation, small_mass, large_mass):
@@ -190,7 +195,7 @@ def period(separation, small_mass, large_mass):
         return 0 * year
 
     if large_mass == 0 * kg:
-        return inf * year
+        return INCREDIBLY_LARGE_NUMBER * year
 
     if small_mass == 0 * kg:
         return 2 * pi * sqrt(separation**3 / large_mass / GRAV_CONSTANT)
@@ -243,12 +248,25 @@ def day_length(planet):
 
     # TODO(woursler): Replace with an actual tidal force calculation,
     # including love numbers and such.
+    density_ratio = dimensionless_with_units(
+        planet.density / EARTH_DENSITY, UNITLESS_UNIT
+    )
+    radius_ratio = dimensionless_with_units(
+        planet.radius / EARTH_RADIUS, UNITLESS_UNIT
+    )
+    mass_ratio = dimensionless_with_units(
+        earth_mass / planet.mass, UNITLESS_UNIT
+    )
+    distance_ratio = dimensionless_with_units(
+        au / planet.orbit.a, UNITLESS_UNIT
+    ) ** 6
+
     change_in_angular_velocity = CHANGE_IN_EARTH_ANG_VEL \
-        * (planet.density / EARTH_DENSITY) \
-        * (planet.radius / EARTH_RADIUS) \
-        * (earth_mass / planet.mass) \
+        * density_ratio \
+        * radius_ratio \
+        * mass_ratio \
         * (planet.sun.mass_ratio ** 2) \
-        * (au ** 6 / (planet.orbit.a ** 6))
+        * distance_ratio
 
     ang_velocity = base_angular_velocity + \
         (change_in_angular_velocity * planet.sun.age)
@@ -356,7 +374,9 @@ def vol_inventory(mass, escape_vel, rms_vel, stellar_mass, zone,
 def pressure(volatile_gas_inventory, equat_radius, gravity):
     '''This implements Fogg's eq.18.'''
 
-    radius_ratio = equat_radius / EARTH_RADIUS
+    radius_ratio = dimensionless_with_units(
+        equat_radius / EARTH_RADIUS, UNITLESS_UNIT
+    )
     gravity_ratio = dimensionless_with_units(gravity, gee)
 
     vgi_earth = 10000  # Taken from Fogg 85.
@@ -374,6 +394,8 @@ def boiling_point(surf_pressure):
 
     # TODO(woursler): This would be better as part of a phase diagram.
     '''
+    if surf_pressure <= 0 * bar:
+        return 0 * K
 
     return 1.0 / (
         (
@@ -390,8 +412,10 @@ def hydro_fraction(volatile_gas_inventory, planet_radius):
     I have changed the function very slightly:   the fraction of Earth's
     surface covered by water is 71%, not 75% as Fogg used. '''
 
-    temp = (0.71 * volatile_gas_inventory / 1000.0) * \
-        ((EARTH_RADIUS / planet_radius) ** 2)
+    radius_ratio = dimensionless_with_units(
+        EARTH_RADIUS / planet_radius, UNITLESS_UNIT
+    )
+    temp = (0.71 * volatile_gas_inventory / 1000.0) * (radius_ratio ** 2)
     if temp >= 1.0:
         return 1.0
     else:
@@ -422,7 +446,10 @@ def cloud_fraction(surf_temp, smallest_MW_retained, equat_radius,
         hydro_mass = hydro_fraction * surf_area * EARTH_WATER_MASS_PER_AREA
         water_vapor_in_kg = (0.00000001 * hydro_mass) * \
             exp(Q2_36 * (surf_temp * K - EARTH_AVERAGE_TEMP))
-        fraction = CLOUD_COVERAGE_FACTOR * water_vapor_in_kg / surf_area
+        fraction = dimensionless_with_units(
+            CLOUD_COVERAGE_FACTOR * water_vapor_in_kg / surf_area,
+            UNITLESS_UNIT,
+        )
         if fraction >= 1.0:
             return 1.0
         else:
@@ -833,24 +860,21 @@ def breathability(planet):
     of the planet's atmosphere.                                       JLB'''
     oxygen_ok = False
 
-    if planet.gases == 0:
+    if not planet.atmosphere or len(planet.atmosphere) == 0:
         return BreathabilityPhrase.NONE
 
-    for index in range(planet.gases):
-        gas_no = 0
+    an_o = lookup_gas('O').num
+    an_o2 = lookup_gas('O2').num
 
-        ipp = inspired_partial_pressure(planet.surf_pressure,
-                                        planet.atmosphere[index].surf_pressure)
+    for gas, partial_pressure in planet.atmosphere:
+        ipp = inspired_partial_pressure(planet.surf_pressure, partial_pressure)
 
-        for n in range(len(planet.gases)):
-            if planet.gases[n].num == planet.atmosphere[index].num:
-                gas_no = n
-
-        if ipp > planet.gases[gas_no].max_ipp:
+        if gas.max_ipp and ipp > gas.max_ipp:
             return BreathabilityPhrase.POISONOUS
 
-        if planet.atmosphere[index].num == AN_O:
-            oxygen_ok = ((ipp >= MIN_O2_IPP) and (ipp <= MAX_O2_IPP))
+        if gas.num == an_o or gas.num == an_o2:
+            if (ipp >= MIN_O2_IPP) and (ipp <= MAX_O2_IPP):
+                oxygen_ok = True
 
     if oxygen_ok:
         return BreathabilityPhrase.BREATHABLE

@@ -60,6 +60,8 @@ CLOUD_COVERAGE_FACTOR = 1.839E-8 * km ** 2 / kg
 
 # The rough pressure of assumed water in human respiration.
 H2O_ASSUMED_PRESSURE = 47. * mmhg  # Dole p. 15
+MIN_O2_IPP = 72. * mmhg  # Dole, p. 15
+MAX_O2_IPP = 400. * mmhg  # Dole, p. 15
 
 # Albedo estimates
 # TODO(woursler): These are not sourced.
